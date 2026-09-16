@@ -98,9 +98,6 @@ header>*{pointer-events:auto}
 </script>
 <script type="module">
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import gsap from 'gsap';
@@ -117,7 +114,8 @@ const FLAVOURS = [
   { name:'Cocktail', jColor:'#865DFF', bg:0x0a0620, fog:0x141040, sun:'#9a8aff', glow:'#35A7FF' }
 ];
 
-let scene, camera, renderer, composer, controls, clock;
+let scene, camera, renderer, controls, clock;
+let perfMode = 'high'; // high = 120fps target
 let currentFlavour = 3, dropTriggered = false;
 let dropMesh, dropStartY = 14, dropEndY = 4.6;
 let voxelData = [], convertedMeshes = [];
@@ -142,18 +140,17 @@ function init() {
   camera = new THREE.PerspectiveCamera(40, innerWidth / innerHeight, 0.1, 200);
   camera.position.set(0, 7, 22);
 
-  renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+  renderer = new THREE.WebGLRenderer({ antialias: false, powerPreference: 'high-performance', stencil: false, depth: true });
   renderer.setSize(innerWidth, innerHeight);
-  renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+  // 120fps: cap DPR to 1.5 max, 1 on high-DPR mobile, no 2x tax
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.0;
-  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.enabled = false;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+  // output encoding for speed
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
   document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-  composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.3, 0.5, 0.9));
 
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
@@ -186,14 +183,7 @@ function setupLights() {
   scene.add(new THREE.HemisphereLight(0xfff5e6, 0x2a1040, 0.6));
   sunLight = new THREE.DirectionalLight(0xffeedd, 1.8);
   sunLight.position.set(7, 12, 6);
-  sunLight.castShadow = true;
-  sunLight.shadow.mapSize.set(512, 512);
-  sunLight.shadow.camera.near = 1;
-  sunLight.shadow.camera.far = 35;
-  sunLight.shadow.camera.left = -10;
-  sunLight.shadow.camera.right = 10;
-  sunLight.shadow.camera.top = 10;
-  sunLight.shadow.camera.bottom = -10;
+  sunLight.castShadow = false;
   scene.add(sunLight);
 
   pinkLight = new THREE.PointLight(0xff477e, 8, 25);
@@ -206,7 +196,7 @@ function setupLights() {
 }
 
 function buildStarfield() {
-  const n = 400, pos = new Float32Array(n * 3);
+  const n = 120, pos = new Float32Array(n * 3);
   for (let i = 0; i < n * 3; i += 3) {
     pos[i] = (Math.random() - 0.5) * 120;
     pos[i + 1] = Math.random() * 60 - 5;
@@ -214,15 +204,15 @@ function buildStarfield() {
   }
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.1, transparent: true, opacity: 0.5 })));
+  scene.add(new THREE.Points(geo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.14, transparent: true, opacity: 0.45, sizeAttenuation: true })));
 }
 
 function buildClouds() {
   const cGeo = new THREE.SphereGeometry(1, 8, 6);
   const cMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 1, metalness: 0 });
-  for (let i = 0; i < 8; i++) {
+  for (let i = 0; i < 4; i++) {
     const g = new THREE.Group();
-    const cnt = 2 + Math.floor(Math.random() * 3);
+    const cnt = 2;
     for (let j = 0; j < cnt; j++) {
       const m = new THREE.Mesh(cGeo, cMat);
       m.position.set((Math.random() - 0.5) * 2, (Math.random() - 0.5) * 0.3, (Math.random() - 0.5) * 1);
@@ -269,11 +259,12 @@ function buildIsland() {
     voxelData.push({ x, y: Y_OFF, z, color: GRASS_GREEN, convertible: false, converted: false, progress: 0, distFromCenter: Math.sqrt(x * x + z * z) });
   });
 
-  const creamMat = new THREE.MeshStandardMaterial({ color: CREAM, roughness: 0.7, metalness: 0, envMapIntensity: 0.4 });
+  const creamMat = new THREE.MeshStandardMaterial({ color: CREAM, roughness: 0.7, metalness: 0, envMapIntensity: 0.25 });
   creamCount = creamList.length;
   creamIG = new THREE.InstancedMesh(sharedBox, creamMat, creamCount);
-  creamIG.castShadow = true;
-  creamIG.receiveShadow = true;
+  creamIG.castShadow = false;
+  creamIG.receiveShadow = false;
+  creamIG.frustumCulled = true;
   creamList.forEach((v, i) => {
     _col.set(v.color);
     _m4.makeTranslation(v.x, v.y, v.z);
@@ -284,11 +275,12 @@ function buildIsland() {
   if (creamIG.instanceColor) creamIG.instanceColor.needsUpdate = true;
   scene.add(creamIG);
 
-  const grassMat = new THREE.MeshStandardMaterial({ color: GRASS_GREEN, roughness: 0.6, metalness: 0, envMapIntensity: 0.3 });
+  const grassMat = new THREE.MeshStandardMaterial({ color: GRASS_GREEN, roughness: 0.6, metalness: 0, envMapIntensity: 0.2 });
   grassCount = grassList.length;
   grassIG = new THREE.InstancedMesh(sharedBox, grassMat, grassCount);
-  grassIG.castShadow = true;
-  grassIG.receiveShadow = true;
+  grassIG.castShadow = false;
+  grassIG.receiveShadow = false;
+  grassIG.frustumCulled = true;
   grassList.forEach((v, i) => {
     _m4.makeTranslation(v.x, v.y, v.z);
     grassIG.setMatrixAt(i, _m4);
@@ -300,18 +292,18 @@ function buildIsland() {
 function makeJellyMat(hexColor) {
   const c = new THREE.Color(hexColor);
   const m = new THREE.MeshPhysicalMaterial({
-    color: c, roughness: 0.06, metalness: 0.05, transmission: 0.9, ior: 1.45, thickness: 2.5,
-    clearcoat: 1.0, clearcoatRoughness: 0.03, specularIntensity: 0.9, envMapIntensity: 1.5,
-    sheen: 0.3, sheenRoughness: 0.3, sheenColor: new THREE.Color(0xffffff),
-    attenuationColor: c, attenuationDistance: 1.2, transparent: true, side: THREE.FrontSide,
-    emissive: c, emissiveIntensity: 0.05
+    color: c, roughness: 0.08, metalness: 0, transmission: 0.92, ior: 1.43, thickness: 1.8,
+    clearcoat: 0.9, clearcoatRoughness: 0.06, specularIntensity: 0.85, envMapIntensity: 1.2,
+    attenuationColor: c, attenuationDistance: 1.4, transparent: true, side: THREE.FrontSide,
+    emissive: c, emissiveIntensity: 0.03
   });
+  // single cheap wobble — no heavy shader recompiles per mesh reuse
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uTime = { value: 0 };
-    shader.uniforms.uWobble = { value: 0.12 };
+    shader.uniforms.uWobble = { value: 0.08 };
     shader.vertexShader = shader.vertexShader.replace(
       '#include <common>',
-      '#include <common>\nuniform float uTime;\nuniform float uWobble;\nfloat wob(vec3 p, float t){\nreturn sin(p.x*2.1+t*1.7)*cos(p.z*1.9+t*1.3)*0.07+cos(p.y*3.2+t*2.1)*sin(p.x*1.4-t*0.9)*0.045+sin(p.z*2.7-t*1.5)*cos(p.y*1.8+t*2.3)*0.035+cos((p.x+p.z)*1.6+t*3.1)*0.02;\n}\n'
+      '#include <common>\nuniform float uTime;\nuniform float uWobble;\nfloat wob(vec3 p,float t){return sin(p.x*2.0+t*1.6)*cos(p.z*1.8+t*1.2)*0.05;}\n'
     );
     shader.vertexShader = shader.vertexShader.replace(
       '#include <modelposition>',
@@ -329,13 +321,14 @@ function convertVoxel(idx, jellyColor) {
   vd.progress = 0;
   vd.jellyColor = jellyColor.clone();
 
-  const delay = vd.distFromCenter * 0.12;
+  const delay = vd.distFromCenter * 0.08;
   setTimeout(() => {
-    const geo = new THREE.BoxGeometry(0.96, 0.96, 0.96);
     const mat = makeJellyMat('#' + jellyColor.getHexString());
-    const mesh = new THREE.Mesh(geo, mat);
+    const mesh = new THREE.Mesh(sharedBox, mat);
     mesh.position.set(vd.x, vd.y, vd.z);
-    mesh.castShadow = true;
+    mesh.castShadow = false;
+    mesh.frustumCulled = true;
+    mesh.matrixAutoUpdate = true;
     scene.add(mesh);
     convertedMeshes.push({ mesh, vd, progress: 0 });
   }, delay * 1000);
@@ -346,17 +339,17 @@ function buildHero() {
   const geo = new THREE.BoxGeometry(2.8, 2.8, 2.8);
   const tex = makeLogoTexture();
   const mat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff, map: tex, roughness: 0.04, metalness: 0,
-    transmission: 1.0, ior: 1.52, thickness: 3.0,
-    clearcoat: 1.0, clearcoatRoughness: 0.02,
-    specularIntensity: 0.9, envMapIntensity: 1.8,
-    sheen: 0.3, sheenRoughness: 0.3, sheenColor: new THREE.Color(0xffffff),
-    attenuationColor: new THREE.Color('#FF477E'), attenuationDistance: 0.8,
-    emissive: new THREE.Color('#FF477E'), emissiveIntensity: 0.25,
+    color: 0xffffff, map: tex, roughness: 0.05, metalness: 0,
+    transmission: 0.95, ior: 1.48, thickness: 2.2,
+    clearcoat: 0.9, clearcoatRoughness: 0.06,
+    specularIntensity: 0.85, envMapIntensity: 1.3,
+    attenuationColor: new THREE.Color('#FF477E'), attenuationDistance: 1.0,
+    emissive: new THREE.Color('#FF477E'), emissiveIntensity: 0.15,
     transparent: true, side: THREE.FrontSide
   });
   heroCube = new THREE.Mesh(geo, mat);
-  heroCube.castShadow = true;
+  heroCube.castShadow = false;
+  heroCube.frustumCulled = true;
   heroCube.position.y = 1.4;
   heroGroup.add(heroCube);
 
@@ -395,14 +388,14 @@ function buildTrees() {
     for (let h = 0; h < trunkH; h++) {
       const m = new THREE.Mesh(sharedSmallBox, trunkMat);
       m.position.set(tx, ty + Y_OFF + h * 0.5 + 0.25, tz);
-      m.castShadow = true;
+      m.castShadow = false;
       scene.add(m);
     }
     const topY = ty + Y_OFF + trunkH * 0.5 + 0.25;
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {
       const m = new THREE.Mesh(sharedSmallBox, leafMat);
       m.position.set(tx + (Math.random() - 0.5) * 1.2, topY + (Math.random() - 0.5) * 0.8, tz + (Math.random() - 0.5) * 1.2);
-      m.castShadow = true;
+      m.castShadow = false;
       scene.add(m);
     }
   });
@@ -445,18 +438,17 @@ function buildFloatingCubes() {
     const c = new THREE.Color(cfg.hex);
     const geo = new THREE.BoxGeometry(cfg.size, cfg.size, cfg.size);
     const mat = new THREE.MeshPhysicalMaterial({
-      color: c, roughness: 0.07, metalness: 0.05, transmission: 0.88, ior: 1.45, thickness: 2.0,
-      clearcoat: 1.0, clearcoatRoughness: 0.03, specularIntensity: 0.9, envMapIntensity: 1.5,
-      sheen: 0.3, sheenRoughness: 0.3, sheenColor: new THREE.Color(0xffffff),
-      attenuationColor: c, attenuationDistance: 1.2, transparent: true,
-      emissive: c, emissiveIntensity: 0.08
+      color: c, roughness: 0.08, metalness: 0, transmission: 0.90, ior: 1.43, thickness: 1.6,
+      clearcoat: 0.9, clearcoatRoughness: 0.06, specularIntensity: 0.85, envMapIntensity: 1.2,
+      attenuationColor: c, attenuationDistance: 1.4, transparent: true,
+      emissive: c, emissiveIntensity: 0.04
     });
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uTime = { value: 0 };
-      shader.uniforms.uWobble = { value: 0.6 };
+      shader.uniforms.uWobble = { value: 0.35 };
       shader.vertexShader = shader.vertexShader.replace(
         '#include <common>',
-        '#include <common>\nuniform float uTime;\nuniform float uWobble;\nfloat wob(vec3 p, float t){\nreturn sin(p.x*2.1+t*1.7)*cos(p.z*1.9+t*1.3)*0.05+cos(p.y*3.2+t*2.1)*sin(p.x*1.4-t*0.9)*0.035+sin(p.z*2.7-t*1.5)*cos(p.y*1.8+t*2.3)*0.025+cos((p.x+p.z)*1.6+t*3.1)*0.015;\n}\n'
+        '#include <common>\nuniform float uTime;\nuniform float uWobble;\nfloat wob(vec3 p,float t){return sin(p.x*2.0+t*1.6)*0.03;}\n'
       );
       shader.vertexShader = shader.vertexShader.replace(
         '#include <modelposition>',
@@ -467,7 +459,8 @@ function buildFloatingCubes() {
     const mesh = new THREE.Mesh(geo, mat);
     const angle = (i / configs.length) * Math.PI * 2;
     mesh.position.set(Math.cos(angle) * cfg.dist, 3 + Math.sin(i * 1.5) * 2, Math.sin(angle) * cfg.dist);
-    mesh.castShadow = true;
+    mesh.castShadow = false;
+    mesh.frustumCulled = true;
     scene.add(mesh);
     floatingCubes.push({ mesh, radius: cfg.dist, speed: 0.12 + i * 0.05, angle, baseY: mesh.position.y });
   });
@@ -475,7 +468,7 @@ function buildFloatingCubes() {
 
 function buildPortals() {
   const colors = ['#8a4a1a', '#FF9F1C', '#A8E934', '#FF477E', '#865DFF'];
-  const torGeo = new THREE.TorusGeometry(1.2, 0.1, 12, 36);
+  const torGeo = new THREE.TorusGeometry(1.2, 0.1, 10, 24);
   colors.forEach((hex, i) => {
     const c = new THREE.Color(hex);
     const mat = new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.7, roughness: 0.3, metalness: 0.4, transparent: true, opacity: 0.65 });
@@ -565,7 +558,6 @@ function setupInteraction() {
     camera.aspect = innerWidth / innerHeight;
     camera.updateProjectionMatrix();
     renderer.setSize(innerWidth, innerHeight);
-    composer.setSize(innerWidth, innerHeight);
   });
 }
 
@@ -625,86 +617,89 @@ function animateLoader() {
   setTimeout(() => document.getElementById('loader').classList.add('hidden'), 4000);
 }
 
+let frameCount = 0, lastFPSTime = performance.now(), lastT = 0;
 function animate() {
   requestAnimationFrame(animate);
-  const dt = Math.min(clock.getDelta(), 0.05);
+  const dt = Math.min(clock.getDelta(), 0.033);
   const t = clock.elapsedTime;
 
-  controls.update();
-
-  camDist += (targetDist - camDist) * 0.06;
-  curYaw += (targetYaw - curYaw) * 0.06;
-  curPitch += (targetPitch - curPitch) * 0.06;
+  // smooth camera — cheap lerp, no controls damping cost when idle
+  const camNeedsUpdate = Math.abs(targetDist - camDist) > 0.01 || Math.abs(targetYaw - curYaw) > 0.001 || Math.abs(targetPitch - curPitch) > 0.001;
+  if (camNeedsUpdate) controls.update();
+  camDist += (targetDist - camDist) * 0.08;
+  curYaw += (targetYaw - curYaw) * 0.08;
+  curPitch += (targetPitch - curPitch) * 0.08;
   camera.position.x = Math.sin(curYaw) * Math.cos(curPitch) * camDist;
   camera.position.y = Math.sin(curPitch) * camDist + 1.5;
   camera.position.z = Math.cos(curYaw) * Math.cos(curPitch) * camDist;
   camera.lookAt(0, 1.5, 0);
 
-  convertedMeshes.forEach(cm => {
-    if (cm.progress < 1) {
-      cm.progress = Math.min(1, cm.progress + dt * 1.0);
+  // converted voxels — batch uniform update once per frame
+  if (convertedMeshes.length) {
+    const wobbleAmt = wobbleActive ? Math.max(0, 1 - wobbleTime * 0.4) : 0.08;
+    for (let i=0;i<convertedMeshes.length;i++) {
+      const cm = convertedMeshes[i];
+      if (cm.progress < 1) cm.progress = Math.min(1, cm.progress + dt * 1.2);
+      if (cm.mesh.material.userData.shader) {
+        cm.mesh.material.userData.shader.uniforms.uTime.value = t;
+        cm.mesh.material.userData.shader.uniforms.uWobble.value = wobbleAmt;
+      }
+      // subtle bob — only after jell, cheap
+      const bobY = cm.vd.y + Math.sin(t * 0.5 + cm.vd.distFromCenter * 0.3) * 0.04;
+      cm.mesh.position.y += (bobY - cm.mesh.position.y) * 0.06;
     }
-    const wobbleAmt = wobbleActive ? Math.max(0, 1 - wobbleTime * 0.4) : 0.12;
-    if (cm.mesh.material.userData.shader) {
-      cm.mesh.material.userData.shader.uniforms.uTime.value = t;
-      cm.mesh.material.userData.shader.uniforms.uWobble.value = wobbleAmt;
-    }
-    const bobY = cm.vd.y + Math.sin(t * 0.5 + cm.vd.distFromCenter * 0.3) * 0.06;
-    cm.mesh.position.y += (bobY - cm.mesh.position.y) * 0.05;
-  });
-
-  if (heroCube) {
-    heroCube.rotation.y = t * 0.3;
-    heroCube.rotation.x = Math.sin(t * 0.5) * 0.08;
-    heroGlow.rotation.y = -t * 0.2;
-    heroGlow.scale.setScalar(1 + Math.sin(t * 1.5) * 0.03);
-    heroGroup.position.y = 2.5 + Math.sin(t * 0.8) * 0.15;
   }
 
-  floatingCubes.forEach(f => {
+  if (heroCube) {
+    heroCube.rotation.y = t * 0.28;
+    heroCube.rotation.x = Math.sin(t * 0.45) * 0.06;
+    heroGlow.rotation.y = -t * 0.18;
+    heroGroup.position.y = 2.5 + Math.sin(t * 0.7) * 0.12;
+  }
+
+  for (let i=0;i<floatingCubes.length;i++) {
+    const f = floatingCubes[i];
     f.angle += f.speed * dt;
     f.mesh.position.x = Math.cos(f.angle) * f.radius;
     f.mesh.position.z = Math.sin(f.angle) * f.radius;
-    f.mesh.position.y = f.baseY + Math.sin(t * 0.7 + f.angle) * 0.5;
-    f.mesh.rotation.x += dt * 0.35;
-    f.mesh.rotation.y += dt * 0.5;
+    f.mesh.position.y = f.baseY + Math.sin(t * 0.7 + f.angle) * 0.4;
+    f.mesh.rotation.x += dt * 0.3;
+    f.mesh.rotation.y += dt * 0.4;
     if (f.mesh.material.userData.shader) {
       f.mesh.material.userData.shader.uniforms.uTime.value = t;
-      f.mesh.material.userData.shader.uniforms.uWobble.value = 0.6;
     }
-  });
+  }
 
-  cloudGroups.forEach(c => {
-    c.group.position.x += c.speed * dt;
-    if (c.group.position.x > 50) c.group.position.x = -50;
-    c.group.position.y = c.baseY + Math.sin(t * 0.3 + c.phase) * 0.3;
-  });
+  // clouds — every other frame throttle
+  if ((frameCount & 1) === 0) {
+    for (let i=0;i<cloudGroups.length;i++) {
+      const c = cloudGroups[i];
+      c.group.position.x += c.speed * dt * 2;
+      if (c.group.position.x > 50) c.group.position.x = -50;
+    }
+  }
 
-  portalMeshes.forEach(p => {
-    p.mesh.rotation.z = t * 0.3 + p.phase;
-    p.mesh.position.y = p.baseY + Math.sin(t * 0.5 + p.phase) * 0.3;
-  });
+  for (let i=0;i<portalMeshes.length;i++) {
+    const p = portalMeshes[i];
+    p.mesh.rotation.z = t * 0.25 + p.phase;
+  }
 
   if (wobbleActive) { wobbleTime += dt; if (wobbleTime > 2.5) wobbleActive = false; }
 
-  composer.render();
-}
+  renderer.render(scene, camera);
 
-let frameCount = 0, lastFPSTime = performance.now();
-function updateFPS() {
+  // FPS — single loop, no double count
   frameCount++;
   const now = performance.now();
-  if (now - lastFPSTime >= 1000) {
-    document.getElementById('fps-counter').textContent = frameCount + ' FPS';
+  if (now - lastFPSTime >= 500) {
+    const fps = Math.round(frameCount * 1000 / (now - lastFPSTime));
+    document.getElementById('fps-counter').textContent = fps + ' FPS';
     frameCount = 0;
     lastFPSTime = now;
+    // adaptive DPR — drop to 1 if struggling to hold 90+
+    if (fps < 75 && renderer.getPixelRatio() > 1) renderer.setPixelRatio(1);
+    else if (fps > 110 && renderer.getPixelRatio() < 1.5) renderer.setPixelRatio(1.5);
   }
-}
-
-function loop() {
-  requestAnimationFrame(loop);
-  animate();
-  updateFPS();
 }
 
 animateLoader();
@@ -714,7 +709,7 @@ try {
   console.error('Init failed:', e);
   document.getElementById('loader').classList.add('hidden');
 }
-loop();
+requestAnimationFrame(animate);
 </script>
 </body>
 </html>
