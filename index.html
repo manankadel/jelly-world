@@ -348,14 +348,77 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
   [[-3.8,-1.2],[1.2,4.2]].forEach(([bx,bz])=>{
     for(let i=0;i<4;i++) leaf.push({x:bx+rnd(-.5,.5), y:TOPY+.45+rnd(0,.4), z:bz+rnd(-.5,.5), s:rnd(.42,.58), c:pick(greens)});
   });
-  buildVoxSet(top,'#FF9F9C',.015);
-  buildVoxSet(under,'#C9B895',.012);
-  buildVoxSet(grass,'#A8E934',.02);
-  buildVoxSet(flowers,'#FF6FB0',.02);
-  buildVoxSet(wood,'#8a5a30',.012);
-  buildVoxSet(leaf,'#7dd956',.02);
-  buildVoxSet(stones,'#CFCFC2',.008);
-  buildVoxSet(mush,'#FF8FAB',.012);
+  buildVoxSet(top,'#FF9F9C',.012);
+  buildVoxSet(under,'#C9B895',.01);
+  buildVoxSet(grass,'#A8E934',.015);
+  buildVoxSet(flowers,'#FF6FB0',.015);
+  buildVoxSet(wood,'#8a5a30',.01);
+  buildVoxSet(leaf,'#7dd956',.015);
+  buildVoxSet(stones,'#CFCFC2',.006);
+  buildVoxSet(mush,'#FF8FAB',.01);
+  // ---- SHAPED ARCHITECTURE — where voxel stops, real form begins (intelligent jelly conversion) ----
+  // island stays voxel (terrain), buildings become shaped — so jelly reads as architecture, not cubes
+  const city=new THREE.Group(); island.add(city);
+  function shapedBuilding({x,z,w,d,h, col='#EDE6D5', winCol='#2a2a30', winRows=3, winCols=2, jellyHex}){
+    const grp=new THREE.Group(); grp.position.set(x, TOPY+h/2, z);
+    const body=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,0.14), solidMat(col));
+    grp.add(body);
+    register(body, jellyHex||col, 0.018, false);
+    // cornice + base
+    const base=new THREE.Mesh(new RoundedBoxGeometry(w+0.12,0.12,d+0.12,2,0.04), solidMat('#DCD0B8')); base.position.y=-h/2+0.06; grp.add(base);
+    const topC=new THREE.Mesh(new RoundedBoxGeometry(w+0.08,0.10,d+0.08,2,0.03), solidMat('#E9DEC9')); topC.position.y=h/2-0.05; grp.add(topC);
+    // windows — emissive planes, depth 0.02 outside wall
+    const winMat=new THREE.MeshStandardMaterial({color:winCol, roughness:.2, metalness:.3, emissive:new THREE.Color(winCol), emissiveIntensity:.18});
+    const wx=w-0.5, dx=wx/Math.max(1,winCols);
+    const wy=h-0.7, dy=wy/Math.max(1,winRows);
+    for(let r=0;r<winRows;r++) for(let c=0;c<winCols;c++){
+      const wp=new THREE.Mesh(new THREE.PlaneGeometry(dx*0.58, dy*0.62), winMat);
+      wp.position.set(-wx/2+dx/2+ c*dx, -h/2+0.45+ r*dy+ dy/2, d/2+0.02);
+      grp.add(wp);
+      // back face too for depth when camera orbits
+      const wb=wp.clone(); wb.position.z=-d/2-0.02; wb.rotation.y=Math.PI; grp.add(wb);
+    }
+    // door
+    const door=new THREE.Mesh(new RoundedBoxGeometry(0.42,0.62,0.04,2,0.04), solidMat('#6B4426')); door.position.set(0,-h/2+0.31, d/2+0.03); grp.add(door);
+    city.add(grp);
+    return grp;
+  }
+  function archBridge({x,z,w,h, col}){
+    const grp=new THREE.Group(); grp.position.set(x, TOPY, z);
+    const shape=new THREE.Shape(); shape.moveTo(-w/2,0); shape.lineTo(-w/2,h); shape.bezierCurveTo(-w/4,h+0.6,w/4,h+0.6,w/2,h); shape.lineTo(w/2,0); shape.lineTo(w/2-0.3,0); shape.lineTo(w/2-0.3,h-0.1); shape.bezierCurveTo(w/4,h+0.3,-w/4,h+0.3,-w/2+0.3,h-0.1); shape.lineTo(-w/2+0.3,0);
+    const geom=new THREE.ExtrudeGeometry(shape,{depth:0.45, bevelEnabled:true, bevelSize:0.04, bevelThickness:0.04, bevelSegments:2});
+    const arch=new THREE.Mesh(geom, solidMat(col||'#EFE6D4')); arch.position.z=-0.22; geom.center();
+    grp.add(arch); register(arch, '#FF9F9C', 0.02, false);
+    city.add(grp); return grp;
+  }
+  function streetLamp(x,z){
+    const grp=new THREE.Group(); grp.position.set(x, TOPY, z);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,1.35,10), solidMat('#3A3A42')); pole.position.y=0.68; grp.add(pole);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,14,14), jellyMat('#FFD36A',0.08)); head.position.y=1.38; head.material.transmission=0.7; grp.add(head); alwaysJelly.push(head.material);
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,12), new THREE.MeshBasicMaterial({color:0xFFD36A, transparent:true, opacity:0.08})); glow.position.y=1.38; grp.add(glow);
+    city.add(grp); return grp;
+  }
+  // intentional city layout — frames hero plaza, leaves negative space, creates north/south axis
+  shapedBuilding({x:-2.6,z:1.0,w:1.55,d:1.55,h:3.4, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:4, winCols:2});
+  shapedBuilding({x:2.7,z:1.4,w:1.9,d:1.35,h:2.2, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:2, winCols:3});
+  shapedBuilding({x:3.2,z:-1.6,w:1.25,d:1.25,h:4.1, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:5, winCols:2});
+  shapedBuilding({x:-1.0,z:-2.9,w:2.05,d:1.4,h:1.7, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:3});
+  archBridge({x:0,z:3.9,w:2.2,h:1.35, col:'#EFE6D4'});
+  // bridge bending over pond — organic, not voxel
+  {
+    const grp=new THREE.Group(); grp.position.set(-0.6,TOPY+0.35,-2.0);
+    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-1.4,0,0), new THREE.Vector3(0,0.28,0), new THREE.Vector3(1.4,0,0)]);
+    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,14,0.09,8,false), solidMat('#E8DDC8')); grp.add(tube); register(tube,'#A8E934',0.016,false);
+    city.add(grp);
+  }
+  streetLamp(-1.8,0.2); streetLamp(1.9,-0.4); streetLamp(0.2,2.0);
+  // vending machine — recognizable object to prove world-to-jelly concept
+  {
+    const vm=new THREE.Group(); vm.position.set(4.2,TOPY+0.55,0.2);
+    const box=new THREE.Mesh(new RoundedBoxGeometry(0.72,1.1,0.52,3,0.08), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
+    const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.52,0.72), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.25, roughness:.15})); glass.position.set(0,0.08,0.27); vm.add(glass);
+    city.add(vm);
+  }
 }
 
 // ---- hero jelly cube with logo — rounded liquid glass ----
