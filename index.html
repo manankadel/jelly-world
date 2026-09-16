@@ -290,28 +290,33 @@ function buildVoxSet(items, jellyHex, amp){
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
 const alwaysJelly=[];
+const obstacles=[{x:0,z:0,r:3.2}]; // hero plaza — module scope so robot avoidance sees it
+function clearOf(x,z,pad=1.2){
+  for(const o of obstacles){ if(Math.hypot(x-o.x,z-o.z) < o.r+pad) return false; }
+  return true;
+}
+function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
 {
-  // ---- clear segmentation: 4 intentional zones on a wider island + breathing depth ----
+  // ---- clear segmentation: wider base + non-overlapping zones with exclusion ----
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
   const creams=['#EFE6D4','#E9DEC9','#F2EBDA','#E3D6BE'];
   const greens=['#5FAE54','#54A148','#6FBF5E'];
-  const R=9.2; // bigger island — room for larger buildings + clear zones
+  const R=10.6; // wider base
   // base island — leave central plaza empty for hero
   for(let ly=0;ly<2;ly++){
-    for(let gx=-10;gx<=10;gx++) for(let gz=-10;gz<=10;gz++){
+    for(let gx=-12;gx<=12;gx++) for(let gz=-12;gz<=12;gz++){
       const jx=gx+rnd(-.06,.06), jz=gz+rnd(-.06,.06);
       const d=Math.hypot(jx,jz);
-      const plaza=Math.hypot(jx,jz) < 2.6 && ly===0; // keep center clear for bigger hero isolation
+      const plaza=Math.hypot(jx,jz) < 3.0 && ly===0; // bigger plaza for bigger hero
       if(!plaza && d < R-(ly*.65)+rnd(-.25,.25)){
         top.push({x:gx*.98, y:-ly, z:gz*.98, s:1.0, c:pick(creams)});
-        // only sparse grass, not everywhere
-        if(ly===0 && Math.random()<.08) grass.push({x:gx*.98+rnd(-.15,.15), y:.75, z:gz*.98+rnd(-.15,.15), s:rnd(.4,.6), c:pick(greens)});
+        if(ly===0 && Math.random()<.06) grass.push({x:gx*.98+rnd(-.15,.15), y:.75, z:gz*.98+rnd(-.15,.15), s:rnd(.4,.6), c:pick(greens)});
       }
     }
   }
   for(let ly=2;ly<=7;ly++){
     const r=R-1.1-ly*.85;
-    for(let gx=-10;gx<=10;gx++) for(let gz=-10;gz<=10;gz++){
+    for(let gx=-12;gx<=12;gx++) for(let gz=-12;gz<=12;gz++){
       const d=Math.hypot(gx,gz);
       if(d < r+rnd(-.35,.35) && Math.random()>.12){
         under.push({x:gx*.96, y:-ly, z:gz*.96, s:rnd(.85,1.0), c:pick(['#DCD0B8','#D2C4AA','#E2D7C0'])});
@@ -327,22 +332,40 @@ const alwaysJelly=[];
       if(d<1.9 && Math.random()>.22) leaf.push({x:px+dx*.72*s, y:cy+dy*.68*s, z:pz+dz*.72*s, s:rnd(.55,.78)*s, c:pick(greens)});
     }
   }
-  // ZONE 1 — NW forest (dense, tall, larger) — intentional cluster, depth via height
-  vTree(-6.0, 4.0, 1.7); vTree(-4.8, 1.8, 1.5); vTree(-7.0, 1.2, 1.3);
-  // ZONE 2 — NE meadow (open, flowers only) — breathing space, larger blooms
-  const meadowCenters=[ [5.4,3.8], [6.6,1.8], [4.6,5.2] ];
+  // BUILDINGS FIRST — reserve footprints so nothing grows into them
+  const buildingDefs=[
+    {x:-5.5,z:2.5,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3},
+    {x:5.5,z:3.0,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4},
+    {x:6.5,z:-3.5,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2},
+    {x:-2.0,z:-6.0,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4},
+    {x:-7.0,z:-2.5,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2},
+  ];
+  buildingDefs.forEach(b=> addObstacle(b.x,b.z, Math.max(b.w,b.d)*0.75+0.6));
+  addObstacle(0,7.5,2.2); // arch gate
+  addObstacle(6.4+1.6,0.4,1.2); // vending (updated x below)
+  // ZONE 1 — NW forest, pushed to far corner clear of B1 (-5.5,2.5)
+  [[-8.2,6.2,1.7],[-6.6,7.0,1.5],[-8.8,4.2,1.3]].forEach(([tx,tz,s])=>{
+    if(clearOf(tx,tz,1.4)){ vTree(tx,tz,s); addObstacle(tx,tz,1.3*s); }
+  });
+  // ZONE 2 — NE meadow, clear of B2 (5.5,3.0)
+  const meadowCenters=[ [7.8,5.8], [8.8,3.8], [6.8,7.0] ];
   meadowCenters.forEach(([mx,mz])=>{
+    if(!clearOf(mx,mz,1.0)) return;
+    addObstacle(mx,mz,1.2);
     for(let i=0;i<4;i++) flowers.push({x:mx+rnd(-.9,.9), y:1.1, z:mz+rnd(-.9,.9), s:rnd(.42,.55), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
     for(let i=0;i<2;i++) grass.push({x:mx+rnd(-1.2,1.2), y:.75, z:mz+rnd(-1.2,1.2), s:rnd(.5,.7), c:pick(greens)});
   });
-  // ZONE 3 — SE rock garden (larger stones + mush cluster) — intentional negative space
-  const stones=[ {x:4.6,y:TOPY+.22,z:-4.6,s:.72,c:'#CFC8BA'}, {x:6.2,y:TOPY+.22,z:-3.4,s:.62,c:'#B8AD9A'}, {x:4.0,y:TOPY+.22,z:-5.8,s:.56,c:'#DDD5C2'} ];
-  const mush=[ {x:5.2,y:TOPY+.6,z:-4.0,s:.48,c:'#FF6FA0'}, {x:5.8,y:TOPY+.55,z:-4.5,s:.38,c:'#FFE066'} ];
-  // ZONE 4 — SW pond (larger lily zone) — depth via lower lily pads
-  const pondLeaves=[ {x:-1.2,y:TOPY+.12,z:-5.4,s:.95,c:'#3CB371'}, {x:-2.4,y:TOPY+.12,z:-4.6,s:.88,c:'#3CB371'}, {x:-0.2,y:TOPY+.12,z:-6.2,s:.82,c:'#2E8B57'} ];
-  pondLeaves.forEach(p=> leaf.push(p));
-  vTree(-2.0,-5.2,1.15);
-  [[-5.4,-1.8],[1.8,6.0]].forEach(([bx,bz])=>{
+  // ZONE 3 — SE rock garden, clear of B3 (6.5,-3.5)
+  const stones=[ {x:7.2,y:TOPY+.22,z:-6.4,s:.72,c:'#CFC8BA'}, {x:8.4,y:TOPY+.22,z:-5.2,s:.62,c:'#B8AD9A'}, {x:6.2,y:TOPY+.22,z:-7.4,s:.56,c:'#DDD5C2'} ];
+  const mush=[ {x:7.6,y:TOPY+.6,z:-5.8,s:.48,c:'#FF6FA0'}, {x:8.2,y:TOPY+.55,z:-6.4,s:.38,c:'#FFE066'} ];
+  stones.forEach(s=>{ if(clearOf(s.x,s.z,0.5)) addObstacle(s.x,s.z,0.7); });
+  // ZONE 4 — SW pond, clear of B4 (-2,-6)
+  const pondLeaves=[ {x:-5.0,y:TOPY+.12,z:-7.2,s:.95,c:'#3CB371'}, {x:-6.2,y:TOPY+.12,z:-6.4,s:.88,c:'#3CB371'}, {x:-4.0,y:TOPY+.12,z:-8.0,s:.82,c:'#2E8B57'} ];
+  if(clearOf(-5.0,-7.0,1.5)){ pondLeaves.forEach(p=> leaf.push(p)); addObstacle(-5.0,-7.0,1.8); }
+  if(clearOf(-3.2,-8.2,1.2)){ vTree(-3.2,-8.2,1.15); addObstacle(-3.2,-8.2,1.4); }
+  [[-8.0,-4.5],[2.5,8.2]].forEach(([bx,bz])=>{
+    if(!clearOf(bx,bz,1.0)) return;
+    addObstacle(bx,bz,1.0);
     for(let i=0;i<5;i++) leaf.push({x:bx+rnd(-.6,.6), y:TOPY+.5+rnd(0,.45), z:bz+rnd(-.6,.6), s:rnd(.55,.75), c:pick(greens)});
   });
   buildVoxSet(top,'#FF9F9C',.012);
@@ -419,28 +442,26 @@ const alwaysJelly=[];
     const glow=new THREE.Mesh(new THREE.SphereGeometry(0.34,12,12), new THREE.MeshBasicMaterial({color:0xFFD36A, transparent:true, opacity:0.08})); glow.position.copy(head.position); grp.add(glow);
     city.add(grp); return grp;
   }
-  // intentional city layout — bigger, spread for larger island, frames hero plaza
-  shapedBuilding({x:-4.0,z:1.6,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3});
-  shapedBuilding({x:4.2,z:2.2,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4});
-  shapedBuilding({x:5.0,z:-2.6,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2});
-  shapedBuilding({x:-1.6,z:-4.4,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4});
-  shapedBuilding({x:-5.2,z:-2.2,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2});
-  archBridge({x:0,z:6.0,w:3.4,h:2.1, col:'#EFE6D4'});
-  // bridge bending over pond — organic, not voxel, larger
+  // intentional city layout — uses pre-reserved footprints, no overlaps
+  buildingDefs.forEach(b=> shapedBuilding(b));
+  archBridge({x:0,z:7.5,w:3.4,h:2.1, col:'#EFE6D4'});
+  // bridge bending over pond — placed at pond, clear of buildings
   {
-    const grp=new THREE.Group(); grp.position.set(-0.8,TOPY+0.4,-3.0);
+    const grp=new THREE.Group(); grp.position.set(-5.0,TOPY+0.4,-6.2);
     const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-2.2,0,0), new THREE.Vector3(0,0.42,0), new THREE.Vector3(2.2,0,0)]);
     const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,20,0.14,8,false), solidMat('#E8DDC8')); grp.add(tube); register(tube,'#A8E934',0.016,false);
-    // posts
     [-1.5,0,1.5].forEach(px=>{
       const post=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.5,8), solidMat('#8a7a5a')); post.position.set(px,0.1,0); grp.add(post);
     });
     city.add(grp);
   }
-  streetLamp(-2.8,0.4,1.2); streetLamp(2.9,-0.6,1.2); streetLamp(0.4,3.2,1.1); streetLamp(-3.4,-3.0,1.0);
-  // vending machine — recognizable object, larger
+  // lamps on ring road, checked clear
+  [[-3.2,1.8],[3.4,1.2],[0.6,4.4],[-2.2,-3.2],[5.8,-1.2]].forEach(([lx,lz],i)=>{
+    if(clearOf(lx,lz,0.8)){ streetLamp(lx,lz,1.1+(i%2)*0.15); addObstacle(lx,lz,0.5); }
+  });
+  // vending machine — east edge, clear of B2/B3
   {
-    const vm=new THREE.Group(); vm.position.set(6.4,TOPY+0.85,0.4);
+    const vm=new THREE.Group(); vm.position.set(8.0,TOPY+0.85,0.6);
     const box=new THREE.Mesh(new RoundedBoxGeometry(1.1,1.7,0.8,3,0.12), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
     const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.1), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.3, roughness:.15})); glass.position.set(0,0.12,0.42); vm.add(glass);
     const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.18), new THREE.MeshBasicMaterial({color:0xFF477E})); strip.position.set(0,-0.6,0.42); vm.add(strip);
@@ -507,9 +528,22 @@ let rLegL, rLegR, rArmL, rArmR, rHead, rVisor;
   robot.position.set(2.1,TOPY,1.1); robot.rotation.y=-.5;
   scene.add(robot);
 }
-// robot path around island — wider loop for bigger island
+// robot ring road — radius 3.8 circle, inside all buildings (nearest B at ~5.5), never through walls
 let robotT=0;
-const robotPath=[ [3.2,1.6], [1.8,4.2], [-2.4,3.6], [-4.2,0.2], [-1.8,-4.0], [2.8,-3.0] ];
+const robotPath=[];
+for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; robotPath.push([Math.cos(a)*3.8, Math.sin(a)*3.8]); }
+// runtime collision: push out of any obstacle (buildings/trees/hero)
+function avoidObstacles(px,pz){
+  let nx=px, nz=pz;
+  for(const o of obstacles){
+    const dx=nx-o.x, dz=nz-o.z, d=Math.hypot(dx,dz), min=o.r+0.45;
+    if(d<min && d>0.001){ nx=o.x+dx/d*min; nz=o.z+dz/d*min; }
+  }
+  // hero hard keep-out
+  const hd=Math.hypot(nx,nz);
+  if(hd<2.6){ nx=nx/hd*2.6; nz=nz/hd*2.6; }
+  return [nx,nz];
+}
 
 // ---- drips under island ----
 const drips=[];
@@ -813,10 +847,12 @@ function animate(now){
     const frac=robotT%1;
     // smoothstep
     const s=frac*frac*(3-2*frac);
-    const cx=THREE.MathUtils.lerp(robotPath[idx][0], robotPath[nxt][0], s);
-    const cz=THREE.MathUtils.lerp(robotPath[idx][1], robotPath[nxt][1], s);
+    let cx=THREE.MathUtils.lerp(robotPath[idx][0], robotPath[nxt][0], s);
+    let cz=THREE.MathUtils.lerp(robotPath[idx][1], robotPath[nxt][1], s);
+    [cx,cz]=avoidObstacles(cx,cz);
     robot.position.x+= (cx - robot.position.x)*dt*2.2;
     robot.position.z+= (cz - robot.position.z)*dt*2.2;
+    { const [ax,az]=avoidObstacles(robot.position.x,robot.position.z); robot.position.x=ax; robot.position.z=az; }
     robot.position.y=TOPY+Math.abs(Math.sin(t*6))*0.08 + Math.abs(Math.sin(t*1.4))*0.04*jiggle;
     const ang=Math.atan2(robotPath[nxt][0]-robot.position.x, robotPath[nxt][1]-robot.position.z);
     robot.rotation.y+= (ang - robot.rotation.y)*dt*3;
