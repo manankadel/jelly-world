@@ -186,6 +186,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 import * as THREE from 'three';
 import gsap from 'gsap';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 
 let lp=0; const lfill=document.getElementById('lfill');
 const li=setInterval(()=>{lp=Math.min(92,lp+Math.random()*14);lfill.style.width=lp+'%';},120);
@@ -264,21 +265,24 @@ const world=new THREE.Group(); scene.add(world);
 const island=new THREE.Group(); world.add(island);
 const TOPY=1.0; // island top surface
 
-// ---- voxel island ----
-const unitBox=new THREE.BoxGeometry(1,1,1);
+// ---- voxel island — rounded pixel-glass, no interior gaps ----
+const unitBox=new RoundedBoxGeometry(1,1,1,3,0.12);
 function buildVoxSet(items, jellyHex, amp){
   const byColor={};
   for(const it of items){ (byColor[it.c]=byColor[it.c]||[]).push(it); }
   const out=[];
   for(const c in byColor){
     const arr=byColor[c];
+    // tight pack 0.99 spacing + rounded 0.12 radius = seamless, no visible interior faces even when jiggling
     const im=new THREE.InstancedMesh(unitBox, solidMat(c), arr.length);
     const d=new THREE.Object3D();
     arr.forEach((it,i)=>{ d.position.set(it.x,it.y,it.z); d.scale.setScalar(it.s); d.rotation.set(0,0,0); d.updateMatrix(); im.setMatrixAt(i,d.matrix); });
     im.instanceMatrix.needsUpdate=true;
+    im.frustumCulled=false; // keep interior faces from popping when island breathes as one
     im.userData.voxel=true;
     island.add(im);
-    register(im, jellyHex, amp, true);
+    // island voxels stay solid until jell — tiny amp so faces never separate visibly
+    register(im, jellyHex, Math.min(amp,0.008), true);
     out.push(im);
   }
   return out;
@@ -321,22 +325,32 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
     }
   }
   vTree(-3.4,.6,1.05); vTree(3.6,-.4,1.25); vTree(.4,-3.4,.85);
-  // bushes
-  [[-1.8,2.6],[2.2,2.4],[-4.2,-1.6],[4.4,1.8],[-.6,-2.2]].forEach(([bx,bz])=>{
+  vTree(-1.2,3.8,0.9); vTree(2.8,2.9,0.8);
+  // bushes + extra detailing: mushrooms, stones, lily pads
+  const mushColors=['#FF6FA0','#FFE066','#FF9F1C'];
+  const stones=[], mush=[];
+  [[-1.8,2.6],[2.2,2.4],[-4.2,-1.6],[4.4,1.8],[-.6,-2.2],[0.8,-0.4],[-2.2,-1.2]].forEach(([bx,bz])=>{
     for(let i=0;i<7;i++) leaf.push({x:bx+rnd(-.7,.7), y:TOPY+.45+rnd(0,.5), z:bz+rnd(-.7,.7), s:rnd(.45,.65), c:pick(greens)});
     if(Math.random()<.8) flowers.push({x:bx, y:TOPY+1.05, z:bz, s:.32, c:pick(['#FF6FA0','#B678FF','#FF9F1C'])});
+    // add stone + mushroom near each bush
+    stones.push({x:bx+rnd(-1.2,1.2), y:TOPY+.18, z:bz+rnd(-1.2,1.2), s:rnd(.35,.5), c:pick(['#CFC8BA','#B8AD9A','#DDD5C2'])});
+    if(Math.random()<.6) mush.push({x:bx+rnd(-.6,.6), y:TOPY+.55, z:bz+rnd(-.6,.6), s:rnd(.28,.42), c:pick(mushColors)});
   });
+  // pond lily pads
+  for(let i=0;i<4;i++) leaf.push({x:rnd(-1.2,1.2), y:TOPY+.12, z:rnd(-1.2,1.2), s:rnd(.55,.75), c:'#3CB371'});
   buildVoxSet(top,'#FF9F9C',.015);
   buildVoxSet(under,'#C9B895',.012);
   buildVoxSet(grass,'#A8E934',.02);
   buildVoxSet(flowers,'#FF6FB0',.02);
   buildVoxSet(wood,'#8a5a30',.012);
   buildVoxSet(leaf,'#7dd956',.02);
+  buildVoxSet(stones,'#CFCFC2',.008);
+  buildVoxSet(mush,'#FF8FAB',.012);
 }
 
-// ---- hero jelly cube with logo ----
+// ---- hero jelly cube with logo — rounded liquid glass ----
 const heroMat=jellyMat('#FF477E',.05); heroMat.transmission=1; heroMat.thickness=2.4;
-const hero=new THREE.Mesh(new THREE.BoxGeometry(2.6,2.6,2.6), heroMat);
+const hero=new THREE.Mesh(new RoundedBoxGeometry(2.6,2.6,2.6,6,0.28), heroMat);
 hero.position.set(0,TOPY+1.45,0); scene.add(hero);
 const alwaysJelly=[heroMat];
 function logoTexture(){
@@ -355,9 +369,9 @@ const logoPlane=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.9),
 logoPlane.position.set(0,TOPY+1.45,1.315); scene.add(logoPlane);
 // mini jellies crowning the hero
 const crownDefs=[
-  {g:new THREE.BoxGeometry(.62,.62,.62), c:'#FF9F1C', p:[.75,3.95,.3]},
+  {g:new RoundedBoxGeometry(.62,.62,.62,3,0.12), c:'#FF9F1C', p:[.75,3.95,.3]},
   {g:new THREE.SphereGeometry(.3,18,18), c:'#FF6FA0', p:[-.6,3.85,-.2]},
-  {g:new THREE.BoxGeometry(.4,.4,.4), c:'#B678FF', p:[-.1,4.15,.5]},
+  {g:new RoundedBoxGeometry(.4,.4,.4,2,0.08), c:'#B678FF', p:[-.1,4.15,.5]},
   {g:new THREE.SphereGeometry(.2,14,14), c:'#FF9F1C', p:[.2,4.3,-.35]},
 ];
 const crownMeshes=[];
@@ -367,23 +381,35 @@ for(const d of crownDefs){
   alwaysJelly.push(m.material); crownMeshes.push(m);
 }
 
-// ---- robot (voxel astronaut) ----
+// ---- robot — detailed, rounded, walks around island ----
 const robot=new THREE.Group();
+let rLegL, rLegR, rArmL, rArmR, rHead, rVisor;
 {
-  const white=solidMat('#F1F1F4'), dark=solidMat('#26262e'), yellow=new THREE.MeshStandardMaterial({color:0xFFC93B,roughness:.4,emissive:0xFFC93B,emissiveIntensity:.35});
-  const visor=new THREE.MeshStandardMaterial({color:0x0c0c12,roughness:.15,metalness:.4,emissive:0x35A7FF,emissiveIntensity:.25});
-  function part(mat,w,h,d,x,y,z){ const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat); m.position.set(x,y,z); robot.add(m); return m; }
-  part(dark,.22,.4,.24,-.15,.2,0); part(dark,.22,.4,.24,.15,.2,0);
-  part(white,.58,.62,.42,0,.7,0);
-  part(white,.16,.5,.18,-.38,.72,0); part(white,.16,.5,.18,.38,.72,0);
-  part(yellow,.2,.2,.05,-.38,.72,.1); part(yellow,.2,.2,.05,.38,.72,.1);
-  part(white,.52,.46,.5,0,1.28,0);
-  const v=part(visor,.4,.22,.06,0,1.3,.26);
-  part(yellow,.1,.1,.1,-.12,1.3,.26); part(yellow,.1,.1,.1,.12,1.3,.26);
-  part(dark,.06,.3,.06,0,1.62,0); part(yellow,.14,.14,.14,0,1.8,0);
+  const white=new THREE.MeshStandardMaterial({color:0xF1F1F4, roughness:.55, metalness:.05});
+  const dark=new THREE.MeshStandardMaterial({color:0x26262e, roughness:.7});
+  const yellow=new THREE.MeshStandardMaterial({color:0xFFC93B,roughness:.4,emissive:0xFFC93B,emissiveIntensity:.35});
+  const visorMat=new THREE.MeshStandardMaterial({color:0x0c0c12,roughness:.12,metalness:.5,emissive:0x35A7FF,emissiveIntensity:.35});
+  function rPart(mat,w,h,d,x,y,z, r=0.06){ const m=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,2,Math.min(r,w/2,h/2)),mat); m.position.set(x,y,z); robot.add(m); return m; }
+  rLegL=rPart(dark,.22,.38,.24,-.14,.18,0,0.05);
+  rLegR=rPart(dark,.22,.38,.24,.14,.18,0,0.05);
+  rPart(white,.58,.62,.42,0,.68,0,0.1);
+  rArmL=rPart(white,.16,.46,.18,-.38,.70,0,0.05);
+  rArmR=rPart(white,.16,.46,.18,.38,.70,0,0.05);
+  // light on arms
+  rPart(yellow,.14,.14,.06,-.38,.72,.10,0.03); rPart(yellow,.14,.14,.06,.38,.72,.10,0.03);
+  rPart(white,.52,.46,.5,0,1.24,0,0.08);
+  rHead=rPart(white,.5,.44,.48,0,1.68,0,0.08);
+  rVisor=rPart(visorMat,.42,.20,.08,0,1.70,.26,0.04);
+  rPart(yellow,.09,.09,.09,-.14,1.70,.30,0.03); rPart(yellow,.09,.09,.09,.14,1.70,.30,0.03);
+  rPart(dark,.06,.28,.06,0,1.98,0,0.02); rPart(yellow,.14,.14,.14,0,2.14,0,0.04);
+  // backpack
+  rPart(dark,.32,.42,.18,0,.68,-.28,0.05);
   robot.position.set(2.1,TOPY,1.1); robot.rotation.y=-.5;
   scene.add(robot);
 }
+// robot path around island
+let robotT=0;
+const robotPath=[ [2.1,1.1], [1.2,2.8], [-1.5,2.4], [-2.8,0.2], [-1.2,-2.6], [1.8,-2.0] ];
 
 // ---- drips under island ----
 const drips=[];
@@ -426,7 +452,7 @@ const floaters=[], gallery=[];
     {s:.62,c:'#865DFF'},{s:.44,c:'#35A7FF'},
   ];
   defs.forEach((d,i)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(d.s,d.s,d.s), jellyMat(d.c,.09));
+    const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
     const a=(i/defs.length)*6.28, r=6.5+i*.7;
     m.position.set(Math.cos(a)*r, 2+i*.8, Math.sin(a)*r);
@@ -438,7 +464,7 @@ const floaters=[], gallery=[];
     {s:.6,c:'#FF477E'},{s:.5,c:'#F4F0E8'},{s:.58,c:'#865DFF'},
   ];
   gdefs.forEach((d,i)=>{
-    const m=new THREE.Mesh(new THREE.BoxGeometry(d.s,d.s,d.s), jellyMat(d.c,.09));
+    const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
     const a=(i/gdefs.length)*6.28+.5, r=8+i*.5;
     m.position.set(Math.cos(a)*r, 4.5+(i%3), Math.sin(a)*r);
@@ -679,9 +705,27 @@ function animate(now){
   if(dropMat.userData.shader) dropMat.userData.shader.uniforms.uAmp.value=.1*(.5+jiggle);
   // drips fall loop
   for(const d of drips){ d.position.y-=dt*d.userData.sp*1.6; if(d.position.y<-11.5){ d.position.y=-5.2; } }
-  // robot idle
-  robot.position.y=TOPY+Math.abs(Math.sin(t*1.4))*.06*jiggle;
-  robot.rotation.y=-.5+Math.sin(t*.4)*.15;
+  // robot — walks around island path
+  robotT+=dt*0.35;
+  if(robotPath.length){
+    const idx=Math.floor(robotT)%robotPath.length;
+    const nxt=(idx+1)%robotPath.length;
+    const frac=robotT%1;
+    // smoothstep
+    const s=frac*frac*(3-2*frac);
+    const cx=THREE.MathUtils.lerp(robotPath[idx][0], robotPath[nxt][0], s);
+    const cz=THREE.MathUtils.lerp(robotPath[idx][1], robotPath[nxt][1], s);
+    robot.position.x+= (cx - robot.position.x)*dt*2.2;
+    robot.position.z+= (cz - robot.position.z)*dt*2.2;
+    robot.position.y=TOPY+Math.abs(Math.sin(t*6))*0.08 + Math.abs(Math.sin(t*1.4))*0.04*jiggle;
+    const ang=Math.atan2(robotPath[nxt][0]-robot.position.x, robotPath[nxt][1]-robot.position.z);
+    robot.rotation.y+= (ang - robot.rotation.y)*dt*3;
+    // leg/arm swing
+    if(rLegL&&rLegR) { rLegL.rotation.x=Math.sin(t*6)*0.45; rLegR.rotation.x=-Math.sin(t*6)*0.45; rLegL.position.y=0.18+Math.abs(Math.sin(t*6))*0.04; rLegR.position.y=0.18+Math.abs(Math.cos(t*6))*0.04; }
+    if(rArmL&&rArmR) { rArmL.rotation.x=Math.sin(t*6+0.5)*0.6; rArmR.rotation.x=-Math.sin(t*6+0.5)*0.6; }
+    if(rHead) rHead.rotation.y=Math.sin(t*1.2)*0.2;
+    if(rVisor) rVisor.material.emissiveIntensity=0.35+Math.sin(t*2)*0.1;
+  }
   // clouds drift
   for(const c of clouds){ c.g.position.x+=dt*.22; if(c.g.position.x>17)c.g.position.x=-17; }
   for(const p of portals){ p.rotation.y+=dt*.8; p.rotation.x=Math.sin(t+p.position.x)*.3; p.position.y+=Math.sin(t*1.2+p.position.x)*dt*.25; }
