@@ -289,6 +289,7 @@ function buildVoxSet(items, jellyHex, amp){
 }
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
+const alwaysJelly=[];
 {
   // ---- clear segmentation: 4 intentional zones on a wider island + breathing depth ----
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
@@ -354,7 +355,6 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
   buildVoxSet(mush,'#FF8FAB',.01);
   // ---- SHAPED ARCHITECTURE — where voxel stops, real form begins (intelligent jelly conversion) ----
   // island stays voxel (terrain), buildings become shaped — so jelly reads as architecture, not cubes
-  const alwaysJelly=[];
   const city=new THREE.Group(); island.add(city);
   function shapedBuilding({x,z,w,d,h, col='#EDE6D5', winCol='#2a2a30', winRows=3, winCols=2, jellyHex}){
     const grp=new THREE.Group(); grp.position.set(x, TOPY+h/2, z);
