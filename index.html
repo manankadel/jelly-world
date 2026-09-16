@@ -203,8 +203,8 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.1;
 const pmrem=new THREE.PMREMGenerator(renderer);
 scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;
-const camera=new THREE.PerspectiveCamera(42,innerWidth/innerHeight,.1,140);
-camera.position.set(0,7.5,22);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,140);
+camera.position.set(0,8.2,26);
 const lookT=new THREE.Vector3(0,1.6,0);
 let autoOrbit=false, orbitA=.5;
 
@@ -290,54 +290,64 @@ function buildVoxSet(items, jellyHex, amp){
 const rnd=(a,b)=>a+Math.random()*(b-a);
 const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
 {
+  // ---- clear segmentation: 4 intentional zones on a wider island + breathing depth ----
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
   const creams=['#EFE6D4','#E9DEC9','#F2EBDA','#E3D6BE'];
   const greens=['#5FAE54','#54A148','#6FBF5E'];
-  const R=5.2;
+  const R=6.4; // wider for breathing room
+  // base island — leave central plaza empty for hero
   for(let ly=0;ly<2;ly++){
-    for(let gx=-6;gx<=6;gx++) for(let gz=-6;gz<=6;gz++){
-      const jx=gx+rnd(-.08,.08), jz=gz+rnd(-.08,.08);
+    for(let gx=-7;gx<=7;gx++) for(let gz=-7;gz<=7;gz++){
+      const jx=gx+rnd(-.06,.06), jz=gz+rnd(-.06,.06);
       const d=Math.hypot(jx,jz);
-      if(d < R-(ly*.7)+rnd(-.3,.3)){
+      const plaza=Math.hypot(jx,jz) < 1.6 && ly===0; // keep center clear for intentional hero isolation
+      if(!plaza && d < R-(ly*.65)+rnd(-.25,.25)){
         top.push({x:gx*.98, y:-ly, z:gz*.98, s:.95, c:pick(creams)});
-        if(ly===0 && Math.random()<.3) grass.push({x:gx*.98+rnd(-.2,.2), y:.72, z:gz*.98+rnd(-.2,.2), s:rnd(.35,.55), c:pick(greens)});
-        if(ly===0 && Math.random()<.07) flowers.push({x:gx*.98, y:1.05, z:gz*.98, s:rnd(.28,.36), c:pick(['#FF6FA0','#B678FF','#FF9F1C','#FFFFFF'])});
+        // only sparse grass, not everywhere
+        if(ly===0 && Math.random()<.10) grass.push({x:gx*.98+rnd(-.15,.15), y:.72, z:gz*.98+rnd(-.15,.15), s:rnd(.35,.5), c:pick(greens)});
       }
     }
   }
   for(let ly=2;ly<=6;ly++){
-    const r=R-1-ly*.82;
-    for(let gx=-6;gx<=6;gx++) for(let gz=-6;gz<=6;gz++){
+    const r=R-1.1-ly*.82;
+    for(let gx=-7;gx<=7;gx++) for(let gz=-7;gz<=7;gz++){
       const d=Math.hypot(gx,gz);
-      if(d < r+rnd(-.4,.4) && Math.random()>.14){
+      if(d < r+rnd(-.35,.35) && Math.random()>.12){
         under.push({x:gx*.96, y:-ly, z:gz*.96, s:rnd(.82,.95), c:pick(['#DCD0B8','#D2C4AA','#E2D7C0'])});
       }
     }
   }
-  // voxel trees: trunk + canopy blobs
   function vTree(px,pz,s){
     const h=Math.round(3*s)+1;
     for(let i=0;i<h;i++) wood.push({x:px, y:TOPY+.4+i*.85, z:pz, s:.72*s, c:pick(['#7A5230','#6B4426'])});
     const cy=TOPY+.4+h*.85;
     for(let dx=-2;dx<=2;dx++) for(let dy=-1;dy<=2;dy++) for(let dz=-2;dz<=2;dz++){
       const d=Math.sqrt(dx*dx+dy*dy*.7+dz*dz);
-      if(d<2.3 && Math.random()>.18) leaf.push({x:px+dx*.72*s, y:cy+dy*.68*s, z:pz+dz*.72*s, s:rnd(.6,.8)*s, c:pick(greens)});
+      if(d<1.9 && Math.random()>.22) leaf.push({x:px+dx*.72*s, y:cy+dy*.68*s, z:pz+dz*.72*s, s:rnd(.55,.78)*s, c:pick(greens)});
     }
   }
-  vTree(-3.4,.6,1.05); vTree(3.6,-.4,1.25); vTree(.4,-3.4,.85);
-  vTree(-1.2,3.8,0.9); vTree(2.8,2.9,0.8);
-  // bushes + extra detailing: mushrooms, stones, lily pads
-  const mushColors=['#FF6FA0','#FFE066','#FF9F1C'];
-  const stones=[], mush=[];
-  [[-1.8,2.6],[2.2,2.4],[-4.2,-1.6],[4.4,1.8],[-.6,-2.2],[0.8,-0.4],[-2.2,-1.2]].forEach(([bx,bz])=>{
-    for(let i=0;i<7;i++) leaf.push({x:bx+rnd(-.7,.7), y:TOPY+.45+rnd(0,.5), z:bz+rnd(-.7,.7), s:rnd(.45,.65), c:pick(greens)});
-    if(Math.random()<.8) flowers.push({x:bx, y:TOPY+1.05, z:bz, s:.32, c:pick(['#FF6FA0','#B678FF','#FF9F1C'])});
-    // add stone + mushroom near each bush
-    stones.push({x:bx+rnd(-1.2,1.2), y:TOPY+.18, z:bz+rnd(-1.2,1.2), s:rnd(.35,.5), c:pick(['#CFC8BA','#B8AD9A','#DDD5C2'])});
-    if(Math.random()<.6) mush.push({x:bx+rnd(-.6,.6), y:TOPY+.55, z:bz+rnd(-.6,.6), s:rnd(.28,.42), c:pick(mushColors)});
+  // ZONE 1 — NW forest (dense, tall) — intentional cluster, depth via height
+  vTree(-4.2, 2.8, 1.25); vTree(-3.4, 1.2, 1.1); vTree(-5.0, 0.8, 0.95);
+  // ZONE 2 — NE meadow (open, flowers only) — breathing space
+  // no trees here — just intentional flower meadow
+  const meadowCenters=[ [3.8,2.6], [4.6,1.2], [3.2,3.6] ];
+  meadowCenters.forEach(([mx,mz])=>{
+    for(let i=0;i<3;i++) flowers.push({x:mx+rnd(-.7,.7), y:1.05, z:mz+rnd(-.7,.7), s:rnd(.32,.4), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
+    // sparse grass in meadow only
+    for(let i=0;i<2;i++) grass.push({x:mx+rnd(-1,1), y:.72, z:mz+rnd(-1,1), s:rnd(.4,.55), c:pick(greens)});
   });
-  // pond lily pads
-  for(let i=0;i<4;i++) leaf.push({x:rnd(-1.2,1.2), y:TOPY+.12, z:rnd(-1.2,1.2), s:rnd(.55,.75), c:'#3CB371'});
+  // ZONE 3 — SE rock garden (stones + single mush, minimal) — intentional negative space
+  const stones=[ {x:3.2,y:TOPY+.18,z:-3.2,s:.48,c:'#CFC8BA'}, {x:4.4,y:TOPY+.18,z:-2.4,s:.42,c:'#B8AD9A'}, {x:2.8,y:TOPY+.18,z:-4.0,s:.38,c:'#DDD5C2'} ];
+  const mush=[ {x:3.6,y:TOPY+.55,z:-2.8,s:.34,c:'#FF6FA0'} ];
+  // ZONE 4 — SW pond (single lily zone, not scattered) — depth via lower lily pads
+  const pondLeaves=[ {x:-0.8,y:TOPY+.12,z:-3.8,s:.68,c:'#3CB371'}, {x:-1.6,y:TOPY+.12,z:-3.2,s:.62,c:'#3CB371'}, {x:-0.2,y:TOPY+.12,z:-4.4,s:.58,c:'#2E8B57'} ];
+  pondLeaves.forEach(p=> leaf.push(p));
+  // single boutique tree near pond for depth layering
+  vTree(-1.4,-3.6,0.85);
+  // thin bush accents only at zone edges — not everywhere
+  [[-3.8,-1.2],[1.2,4.2]].forEach(([bx,bz])=>{
+    for(let i=0;i<4;i++) leaf.push({x:bx+rnd(-.5,.5), y:TOPY+.45+rnd(0,.4), z:bz+rnd(-.5,.5), s:rnd(.42,.58), c:pick(greens)});
+  });
   buildVoxSet(top,'#FF9F9C',.015);
   buildVoxSet(under,'#C9B895',.012);
   buildVoxSet(grass,'#A8E934',.02);
