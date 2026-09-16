@@ -4,6 +4,7 @@
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>jell it — TURN YOUR WORLD INTO JELLY</title>
+<link rel="icon" href="data:,">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <style>
@@ -194,7 +195,7 @@ const canvas=document.getElementById('bg');
 const scene=new THREE.Scene();
 const DARKBG=new THREE.Color('#16121f');
 scene.background=DARKBG.clone();
-scene.fog=new THREE.Fog(DARKBG.clone(), 26, 64);
+scene.fog=new THREE.Fog(DARKBG.clone(), 34, 90);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(1.75,devicePixelRatio));
 renderer.setSize(innerWidth,innerHeight);
@@ -202,9 +203,9 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.1;
 const pmrem=new THREE.PMREMGenerator(renderer);
 scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;
-const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,140);
-camera.position.set(0,8.2,26);
-const lookT=new THREE.Vector3(0,1.6,0);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,200);
+camera.position.set(0,10.5,34);
+const lookT=new THREE.Vector3(0,2.2,0);
 let autoOrbit=false, orbitA=.5;
 
 scene.add(new THREE.HemisphereLight(0xfff2e0,0x241a30,.6));
@@ -293,26 +294,26 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
   const creams=['#EFE6D4','#E9DEC9','#F2EBDA','#E3D6BE'];
   const greens=['#5FAE54','#54A148','#6FBF5E'];
-  const R=6.4; // wider for breathing room
+  const R=9.2; // bigger island — room for larger buildings + clear zones
   // base island — leave central plaza empty for hero
   for(let ly=0;ly<2;ly++){
-    for(let gx=-7;gx<=7;gx++) for(let gz=-7;gz<=7;gz++){
+    for(let gx=-10;gx<=10;gx++) for(let gz=-10;gz<=10;gz++){
       const jx=gx+rnd(-.06,.06), jz=gz+rnd(-.06,.06);
       const d=Math.hypot(jx,jz);
-      const plaza=Math.hypot(jx,jz) < 1.6 && ly===0; // keep center clear for intentional hero isolation
+      const plaza=Math.hypot(jx,jz) < 2.6 && ly===0; // keep center clear for bigger hero isolation
       if(!plaza && d < R-(ly*.65)+rnd(-.25,.25)){
-        top.push({x:gx*.98, y:-ly, z:gz*.98, s:.95, c:pick(creams)});
+        top.push({x:gx*.98, y:-ly, z:gz*.98, s:1.0, c:pick(creams)});
         // only sparse grass, not everywhere
-        if(ly===0 && Math.random()<.10) grass.push({x:gx*.98+rnd(-.15,.15), y:.72, z:gz*.98+rnd(-.15,.15), s:rnd(.35,.5), c:pick(greens)});
+        if(ly===0 && Math.random()<.08) grass.push({x:gx*.98+rnd(-.15,.15), y:.75, z:gz*.98+rnd(-.15,.15), s:rnd(.4,.6), c:pick(greens)});
       }
     }
   }
-  for(let ly=2;ly<=6;ly++){
-    const r=R-1.1-ly*.82;
-    for(let gx=-7;gx<=7;gx++) for(let gz=-7;gz<=7;gz++){
+  for(let ly=2;ly<=7;ly++){
+    const r=R-1.1-ly*.85;
+    for(let gx=-10;gx<=10;gx++) for(let gz=-10;gz<=10;gz++){
       const d=Math.hypot(gx,gz);
       if(d < r+rnd(-.35,.35) && Math.random()>.12){
-        under.push({x:gx*.96, y:-ly, z:gz*.96, s:rnd(.82,.95), c:pick(['#DCD0B8','#D2C4AA','#E2D7C0'])});
+        under.push({x:gx*.96, y:-ly, z:gz*.96, s:rnd(.85,1.0), c:pick(['#DCD0B8','#D2C4AA','#E2D7C0'])});
       }
     }
   }
@@ -325,27 +326,23 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
       if(d<1.9 && Math.random()>.22) leaf.push({x:px+dx*.72*s, y:cy+dy*.68*s, z:pz+dz*.72*s, s:rnd(.55,.78)*s, c:pick(greens)});
     }
   }
-  // ZONE 1 — NW forest (dense, tall) — intentional cluster, depth via height
-  vTree(-4.2, 2.8, 1.25); vTree(-3.4, 1.2, 1.1); vTree(-5.0, 0.8, 0.95);
-  // ZONE 2 — NE meadow (open, flowers only) — breathing space
-  // no trees here — just intentional flower meadow
-  const meadowCenters=[ [3.8,2.6], [4.6,1.2], [3.2,3.6] ];
+  // ZONE 1 — NW forest (dense, tall, larger) — intentional cluster, depth via height
+  vTree(-6.0, 4.0, 1.7); vTree(-4.8, 1.8, 1.5); vTree(-7.0, 1.2, 1.3);
+  // ZONE 2 — NE meadow (open, flowers only) — breathing space, larger blooms
+  const meadowCenters=[ [5.4,3.8], [6.6,1.8], [4.6,5.2] ];
   meadowCenters.forEach(([mx,mz])=>{
-    for(let i=0;i<3;i++) flowers.push({x:mx+rnd(-.7,.7), y:1.05, z:mz+rnd(-.7,.7), s:rnd(.32,.4), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
-    // sparse grass in meadow only
-    for(let i=0;i<2;i++) grass.push({x:mx+rnd(-1,1), y:.72, z:mz+rnd(-1,1), s:rnd(.4,.55), c:pick(greens)});
+    for(let i=0;i<4;i++) flowers.push({x:mx+rnd(-.9,.9), y:1.1, z:mz+rnd(-.9,.9), s:rnd(.42,.55), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
+    for(let i=0;i<2;i++) grass.push({x:mx+rnd(-1.2,1.2), y:.75, z:mz+rnd(-1.2,1.2), s:rnd(.5,.7), c:pick(greens)});
   });
-  // ZONE 3 — SE rock garden (stones + single mush, minimal) — intentional negative space
-  const stones=[ {x:3.2,y:TOPY+.18,z:-3.2,s:.48,c:'#CFC8BA'}, {x:4.4,y:TOPY+.18,z:-2.4,s:.42,c:'#B8AD9A'}, {x:2.8,y:TOPY+.18,z:-4.0,s:.38,c:'#DDD5C2'} ];
-  const mush=[ {x:3.6,y:TOPY+.55,z:-2.8,s:.34,c:'#FF6FA0'} ];
-  // ZONE 4 — SW pond (single lily zone, not scattered) — depth via lower lily pads
-  const pondLeaves=[ {x:-0.8,y:TOPY+.12,z:-3.8,s:.68,c:'#3CB371'}, {x:-1.6,y:TOPY+.12,z:-3.2,s:.62,c:'#3CB371'}, {x:-0.2,y:TOPY+.12,z:-4.4,s:.58,c:'#2E8B57'} ];
+  // ZONE 3 — SE rock garden (larger stones + mush cluster) — intentional negative space
+  const stones=[ {x:4.6,y:TOPY+.22,z:-4.6,s:.72,c:'#CFC8BA'}, {x:6.2,y:TOPY+.22,z:-3.4,s:.62,c:'#B8AD9A'}, {x:4.0,y:TOPY+.22,z:-5.8,s:.56,c:'#DDD5C2'} ];
+  const mush=[ {x:5.2,y:TOPY+.6,z:-4.0,s:.48,c:'#FF6FA0'}, {x:5.8,y:TOPY+.55,z:-4.5,s:.38,c:'#FFE066'} ];
+  // ZONE 4 — SW pond (larger lily zone) — depth via lower lily pads
+  const pondLeaves=[ {x:-1.2,y:TOPY+.12,z:-5.4,s:.95,c:'#3CB371'}, {x:-2.4,y:TOPY+.12,z:-4.6,s:.88,c:'#3CB371'}, {x:-0.2,y:TOPY+.12,z:-6.2,s:.82,c:'#2E8B57'} ];
   pondLeaves.forEach(p=> leaf.push(p));
-  // single boutique tree near pond for depth layering
-  vTree(-1.4,-3.6,0.85);
-  // thin bush accents only at zone edges — not everywhere
-  [[-3.8,-1.2],[1.2,4.2]].forEach(([bx,bz])=>{
-    for(let i=0;i<4;i++) leaf.push({x:bx+rnd(-.5,.5), y:TOPY+.45+rnd(0,.4), z:bz+rnd(-.5,.5), s:rnd(.42,.58), c:pick(greens)});
+  vTree(-2.0,-5.2,1.15);
+  [[-5.4,-1.8],[1.8,6.0]].forEach(([bx,bz])=>{
+    for(let i=0;i<5;i++) leaf.push({x:bx+rnd(-.6,.6), y:TOPY+.5+rnd(0,.45), z:bz+rnd(-.6,.6), s:rnd(.55,.75), c:pick(greens)});
   });
   buildVoxSet(top,'#FF9F9C',.012);
   buildVoxSet(under,'#C9B895',.01);
@@ -357,74 +354,105 @@ const pick=(arr)=>arr[Math.floor(Math.random()*arr.length)];
   buildVoxSet(mush,'#FF8FAB',.01);
   // ---- SHAPED ARCHITECTURE — where voxel stops, real form begins (intelligent jelly conversion) ----
   // island stays voxel (terrain), buildings become shaped — so jelly reads as architecture, not cubes
+  const alwaysJelly=[];
   const city=new THREE.Group(); island.add(city);
   function shapedBuilding({x,z,w,d,h, col='#EDE6D5', winCol='#2a2a30', winRows=3, winCols=2, jellyHex}){
     const grp=new THREE.Group(); grp.position.set(x, TOPY+h/2, z);
-    const body=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,0.14), solidMat(col));
+    const body=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,0.18), solidMat(col));
     grp.add(body);
     register(body, jellyHex||col, 0.018, false);
-    // cornice + base
-    const base=new THREE.Mesh(new RoundedBoxGeometry(w+0.12,0.12,d+0.12,2,0.04), solidMat('#DCD0B8')); base.position.y=-h/2+0.06; grp.add(base);
-    const topC=new THREE.Mesh(new RoundedBoxGeometry(w+0.08,0.10,d+0.08,2,0.03), solidMat('#E9DEC9')); topC.position.y=h/2-0.05; grp.add(topC);
-    // windows — emissive planes, depth 0.02 outside wall
-    const winMat=new THREE.MeshStandardMaterial({color:winCol, roughness:.2, metalness:.3, emissive:new THREE.Color(winCol), emissiveIntensity:.18});
-    const wx=w-0.5, dx=wx/Math.max(1,winCols);
-    const wy=h-0.7, dy=wy/Math.max(1,winRows);
-    for(let r=0;r<winRows;r++) for(let c=0;c<winCols;c++){
-      const wp=new THREE.Mesh(new THREE.PlaneGeometry(dx*0.58, dy*0.62), winMat);
-      wp.position.set(-wx/2+dx/2+ c*dx, -h/2+0.45+ r*dy+ dy/2, d/2+0.02);
-      grp.add(wp);
-      // back face too for depth when camera orbits
-      const wb=wp.clone(); wb.position.z=-d/2-0.02; wb.rotation.y=Math.PI; grp.add(wb);
+    // base plinth + cornice + rooftop parapet — reads as intentional architecture at larger scale
+    const base=new THREE.Mesh(new RoundedBoxGeometry(w+0.22,0.2,d+0.22,2,0.06), solidMat('#DCD0B8')); base.position.y=-h/2+0.1; grp.add(base);
+    const topC=new THREE.Mesh(new RoundedBoxGeometry(w+0.16,0.16,d+0.16,2,0.05), solidMat('#E9DEC9')); topC.position.y=h/2-0.08; grp.add(topC);
+    const parapet=new THREE.Mesh(new RoundedBoxGeometry(w*0.7,0.28,d*0.55,2,0.06), solidMat(col)); parapet.position.y=h/2+0.14; grp.add(parapet);
+    // water tank / rooftop detail on taller buildings
+    if(h>4){
+      const tank=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,0.6,12), solidMat('#CFC8BA')); tank.position.set(w*0.18,h/2+0.45,0); grp.add(tank);
+      const ant=new THREE.Mesh(new THREE.CylinderGeometry(0.03,0.03,1.0,6), solidMat('#3A3A42')); ant.position.set(-w*0.2,h/2+0.6,0); grp.add(ant);
     }
-    // door
-    const door=new THREE.Mesh(new RoundedBoxGeometry(0.42,0.62,0.04,2,0.04), solidMat('#6B4426')); door.position.set(0,-h/2+0.31, d/2+0.03); grp.add(door);
+    // windows with frames — depth + intention
+    const winMat=new THREE.MeshStandardMaterial({color:winCol, roughness:.2, metalness:.3, emissive:new THREE.Color(winCol), emissiveIntensity:.2});
+    const frameMat=solidMat('#F7F2E6');
+    const wx=w-0.7, dx=wx/Math.max(1,winCols);
+    const wy=h-1.0, dy=wy/Math.max(1,winRows);
+    for(let r=0;r<winRows;r++) for(let c=0;c<winCols;c++){
+      const fx=dx*0.78, fy=dy*0.8;
+      const fr=new THREE.Mesh(new THREE.PlaneGeometry(fx, fy), frameMat);
+      fr.position.set(-wx/2+dx/2+ c*dx, -h/2+0.65+ r*dy+ dy/2, d/2+0.015);
+      grp.add(fr);
+      const wp=new THREE.Mesh(new THREE.PlaneGeometry(fx*0.72, fy*0.7), winMat);
+      wp.position.set(fr.position.x, fr.position.y, d/2+0.025);
+      grp.add(wp);
+      const wb=wp.clone(); wb.position.z=-d/2-0.025; wb.rotation.y=Math.PI; grp.add(wb);
+      const fb=fr.clone(); fb.position.z=-d/2-0.015; fb.rotation.y=Math.PI; grp.add(fb);
+    }
+    // door with steps + awning — intentional entrance
+    const steps=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.14,0.4,2,0.04), solidMat('#DCD0B8')); steps.position.set(0,-h/2+0.07, d/2+0.2); grp.add(steps);
+    const door=new THREE.Mesh(new RoundedBoxGeometry(0.6,0.95,0.06,2,0.05), solidMat('#6B4426')); door.position.set(0,-h/2+0.55, d/2+0.04); grp.add(door);
+    const awn=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.08,0.35,2,0.03), solidMat('#FF6FA0')); awn.position.set(0,-h/2+1.15, d/2+0.18); grp.add(awn);
+    // side balconies on wide buildings
+    if(w>2.2 && h>2.5){
+      const balc=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.08,0.4,2,0.02), solidMat('#E9DEC9')); balc.position.set(w/2+0.3, 0.3, 0); grp.add(balc);
+      const rail=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.28,0.05,2,0.02), solidMat('#3A3A42')); rail.position.set(w/2+0.3, 0.5, 0.2); grp.add(rail);
+    }
     city.add(grp);
     return grp;
   }
   function archBridge({x,z,w,h, col}){
     const grp=new THREE.Group(); grp.position.set(x, TOPY, z);
-    const shape=new THREE.Shape(); shape.moveTo(-w/2,0); shape.lineTo(-w/2,h); shape.bezierCurveTo(-w/4,h+0.6,w/4,h+0.6,w/2,h); shape.lineTo(w/2,0); shape.lineTo(w/2-0.3,0); shape.lineTo(w/2-0.3,h-0.1); shape.bezierCurveTo(w/4,h+0.3,-w/4,h+0.3,-w/2+0.3,h-0.1); shape.lineTo(-w/2+0.3,0);
-    const geom=new THREE.ExtrudeGeometry(shape,{depth:0.45, bevelEnabled:true, bevelSize:0.04, bevelThickness:0.04, bevelSegments:2});
-    const arch=new THREE.Mesh(geom, solidMat(col||'#EFE6D4')); arch.position.z=-0.22; geom.center();
+    const shape=new THREE.Shape(); shape.moveTo(-w/2,0); shape.lineTo(-w/2,h); shape.bezierCurveTo(-w/4,h+0.9,w/4,h+0.9,w/2,h); shape.lineTo(w/2,0); shape.lineTo(w/2-0.45,0); shape.lineTo(w/2-0.45,h-0.15); shape.bezierCurveTo(w/4,h+0.45,-w/4,h+0.45,-w/2+0.45,h-0.15); shape.lineTo(-w/2+0.45,0);
+    const geom=new THREE.ExtrudeGeometry(shape,{depth:0.7, bevelEnabled:true, bevelSize:0.06, bevelThickness:0.06, bevelSegments:2});
+    const arch=new THREE.Mesh(geom, solidMat(col||'#EFE6D4')); arch.position.z=-0.35; geom.center();
     grp.add(arch); register(arch, '#FF9F9C', 0.02, false);
+    // lanterns on arch — intentional detail
+    [-w/2+0.2, w/2-0.2].forEach(px=>{
+      const l=new THREE.Mesh(new THREE.SphereGeometry(0.14,12,12), jellyMat('#FFD36A',0.08)); l.position.set(px,h+0.55,0); l.material.transmission=0.7; grp.add(l); alwaysJelly.push(l.material);
+    });
     city.add(grp); return grp;
   }
-  function streetLamp(x,z){
-    const grp=new THREE.Group(); grp.position.set(x, TOPY, z);
-    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.07,1.35,10), solidMat('#3A3A42')); pole.position.y=0.68; grp.add(pole);
-    const head=new THREE.Mesh(new THREE.SphereGeometry(0.16,14,14), jellyMat('#FFD36A',0.08)); head.position.y=1.38; head.material.transmission=0.7; grp.add(head); alwaysJelly.push(head.material);
-    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.22,12,12), new THREE.MeshBasicMaterial({color:0xFFD36A, transparent:true, opacity:0.08})); glow.position.y=1.38; grp.add(glow);
+  function streetLamp(x,z, s=1){
+    const grp=new THREE.Group(); grp.position.set(x, TOPY, z); grp.scale.setScalar(s);
+    const pole=new THREE.Mesh(new THREE.CylinderGeometry(0.09,0.11,2.1,10), solidMat('#3A3A42')); pole.position.y=1.05; grp.add(pole);
+    const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.05,0.05,0.6,8), solidMat('#3A3A42')); arm.rotation.z=Math.PI/2; arm.position.set(0.25,2.05,0); grp.add(arm);
+    const head=new THREE.Mesh(new THREE.SphereGeometry(0.24,14,14), jellyMat('#FFD36A',0.08)); head.position.set(0.55,1.95,0); head.material.transmission=0.7; grp.add(head); alwaysJelly.push(head.material);
+    const cap=new THREE.Mesh(new THREE.ConeGeometry(0.3,0.22,10), solidMat('#2B2B32')); cap.position.set(0.55,2.18,0); grp.add(cap);
+    const glow=new THREE.Mesh(new THREE.SphereGeometry(0.34,12,12), new THREE.MeshBasicMaterial({color:0xFFD36A, transparent:true, opacity:0.08})); glow.position.copy(head.position); grp.add(glow);
     city.add(grp); return grp;
   }
-  // intentional city layout — frames hero plaza, leaves negative space, creates north/south axis
-  shapedBuilding({x:-2.6,z:1.0,w:1.55,d:1.55,h:3.4, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:4, winCols:2});
-  shapedBuilding({x:2.7,z:1.4,w:1.9,d:1.35,h:2.2, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:2, winCols:3});
-  shapedBuilding({x:3.2,z:-1.6,w:1.25,d:1.25,h:4.1, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:5, winCols:2});
-  shapedBuilding({x:-1.0,z:-2.9,w:2.05,d:1.4,h:1.7, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:3});
-  archBridge({x:0,z:3.9,w:2.2,h:1.35, col:'#EFE6D4'});
-  // bridge bending over pond — organic, not voxel
+  // intentional city layout — bigger, spread for larger island, frames hero plaza
+  shapedBuilding({x:-4.0,z:1.6,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3});
+  shapedBuilding({x:4.2,z:2.2,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4});
+  shapedBuilding({x:5.0,z:-2.6,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2});
+  shapedBuilding({x:-1.6,z:-4.4,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4});
+  shapedBuilding({x:-5.2,z:-2.2,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2});
+  archBridge({x:0,z:6.0,w:3.4,h:2.1, col:'#EFE6D4'});
+  // bridge bending over pond — organic, not voxel, larger
   {
-    const grp=new THREE.Group(); grp.position.set(-0.6,TOPY+0.35,-2.0);
-    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-1.4,0,0), new THREE.Vector3(0,0.28,0), new THREE.Vector3(1.4,0,0)]);
-    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,14,0.09,8,false), solidMat('#E8DDC8')); grp.add(tube); register(tube,'#A8E934',0.016,false);
+    const grp=new THREE.Group(); grp.position.set(-0.8,TOPY+0.4,-3.0);
+    const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-2.2,0,0), new THREE.Vector3(0,0.42,0), new THREE.Vector3(2.2,0,0)]);
+    const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,20,0.14,8,false), solidMat('#E8DDC8')); grp.add(tube); register(tube,'#A8E934',0.016,false);
+    // posts
+    [-1.5,0,1.5].forEach(px=>{
+      const post=new THREE.Mesh(new THREE.CylinderGeometry(0.07,0.07,0.5,8), solidMat('#8a7a5a')); post.position.set(px,0.1,0); grp.add(post);
+    });
     city.add(grp);
   }
-  streetLamp(-1.8,0.2); streetLamp(1.9,-0.4); streetLamp(0.2,2.0);
-  // vending machine — recognizable object to prove world-to-jelly concept
+  streetLamp(-2.8,0.4,1.2); streetLamp(2.9,-0.6,1.2); streetLamp(0.4,3.2,1.1); streetLamp(-3.4,-3.0,1.0);
+  // vending machine — recognizable object, larger
   {
-    const vm=new THREE.Group(); vm.position.set(4.2,TOPY+0.55,0.2);
-    const box=new THREE.Mesh(new RoundedBoxGeometry(0.72,1.1,0.52,3,0.08), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
-    const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.52,0.72), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.25, roughness:.15})); glass.position.set(0,0.08,0.27); vm.add(glass);
+    const vm=new THREE.Group(); vm.position.set(6.4,TOPY+0.85,0.4);
+    const box=new THREE.Mesh(new RoundedBoxGeometry(1.1,1.7,0.8,3,0.12), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
+    const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.1), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.3, roughness:.15})); glass.position.set(0,0.12,0.42); vm.add(glass);
+    const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.18), new THREE.MeshBasicMaterial({color:0xFF477E})); strip.position.set(0,-0.6,0.42); vm.add(strip);
     city.add(vm);
   }
 }
 
-// ---- hero jelly cube with logo — rounded liquid glass ----
-const heroMat=jellyMat('#FF477E',.05); heroMat.transmission=1; heroMat.thickness=2.4;
-const hero=new THREE.Mesh(new RoundedBoxGeometry(2.6,2.6,2.6,6,0.28), heroMat);
-hero.position.set(0,TOPY+1.45,0); scene.add(hero);
-const alwaysJelly=[heroMat];
+// ---- hero jelly cube with logo — rounded liquid glass, larger ----
+const heroMat=jellyMat('#FF477E',.05); heroMat.transmission=1; heroMat.thickness=2.8;
+const hero=new THREE.Mesh(new RoundedBoxGeometry(3.6,3.6,3.6,6,0.38), heroMat);
+hero.position.set(0,TOPY+2.0,0); scene.add(hero);
+alwaysJelly.push(heroMat);
 function logoTexture(){
   const cv=document.createElement('canvas'); cv.width=cv.height=512;
   const x=cv.getContext('2d');
@@ -436,15 +464,15 @@ function logoTexture(){
   x.save(); x.translate(256,356); x.fillText('it',0,0); x.restore();
   const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace; return tx;
 }
-const logoPlane=new THREE.Mesh(new THREE.PlaneGeometry(1.9,1.9),
+const logoPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.6,2.6),
   new THREE.MeshBasicMaterial({map:logoTexture(), transparent:true, opacity:.92}));
-logoPlane.position.set(0,TOPY+1.45,1.315); scene.add(logoPlane);
-// mini jellies crowning the hero
+logoPlane.position.set(0,TOPY+2.0,1.815); scene.add(logoPlane);
+// mini jellies crowning the hero — larger
 const crownDefs=[
-  {g:new RoundedBoxGeometry(.62,.62,.62,3,0.12), c:'#FF9F1C', p:[.75,3.95,.3]},
-  {g:new THREE.SphereGeometry(.3,18,18), c:'#FF6FA0', p:[-.6,3.85,-.2]},
-  {g:new RoundedBoxGeometry(.4,.4,.4,2,0.08), c:'#B678FF', p:[-.1,4.15,.5]},
-  {g:new THREE.SphereGeometry(.2,14,14), c:'#FF9F1C', p:[.2,4.3,-.35]},
+  {g:new RoundedBoxGeometry(.9,.9,.9,3,0.16), c:'#FF9F1C', p:[1.1,5.2,.4]},
+  {g:new THREE.SphereGeometry(.44,18,18), c:'#FF6FA0', p:[-.9,5.05,-.3]},
+  {g:new RoundedBoxGeometry(.58,.58,.58,2,0.11), c:'#B678FF', p:[-.15,5.45,.7]},
+  {g:new THREE.SphereGeometry(.3,14,14), c:'#FF9F1C', p:[.3,5.6,-.5]},
 ];
 const crownMeshes=[];
 for(const d of crownDefs){
@@ -479,9 +507,9 @@ let rLegL, rLegR, rArmL, rArmR, rHead, rVisor;
   robot.position.set(2.1,TOPY,1.1); robot.rotation.y=-.5;
   scene.add(robot);
 }
-// robot path around island
+// robot path around island — wider loop for bigger island
 let robotT=0;
-const robotPath=[ [2.1,1.1], [1.2,2.8], [-1.5,2.4], [-2.8,0.2], [-1.2,-2.6], [1.8,-2.0] ];
+const robotPath=[ [3.2,1.6], [1.8,4.2], [-2.4,3.6], [-4.2,0.2], [-1.8,-4.0], [2.8,-3.0] ];
 
 // ---- drips under island ----
 const drips=[];
@@ -686,7 +714,7 @@ let heroSquish=0;
 function doDrop(){
   if(dropped) return; dropped=true;
   const hh=document.getElementById('heroHint'); if(hh) hh.style.opacity='0';
-  gsap.to(drop.position,{y:4.35,duration:.85,ease:'power3.in',onComplete:impact});
+  gsap.to(drop.position,{y:5.05,duration:.85,ease:'power3.in',onComplete:impact});
   gsap.to(drop.scale,{x:.7,y:.5,z:.7,duration:.85,ease:'power3.in'});
 }
 function impact(){
@@ -773,7 +801,7 @@ function animate(now){
   // drop idle / landed
   if(!dropped){ drop.position.y=10+Math.sin(t*1.2)*.6; drop.rotation.y+=dt*.6; }
   else if(!jellied){}
-  else { drop.position.y=4.35+Math.sin(t*2)*.06; drop.scale.set(1.5+Math.sin(t*2)*.05,.55,1.5); }
+  else { drop.position.y=5.05+Math.sin(t*2)*.06; drop.scale.set(1.5+Math.sin(t*2)*.05,.55,1.5); }
   if(dropMat.userData.shader) dropMat.userData.shader.uniforms.uAmp.value=.1*(.5+jiggle);
   // drips fall loop
   for(const d of drips){ d.position.y-=dt*d.userData.sp*1.6; if(d.position.y<-11.5){ d.position.y=-5.2; } }
