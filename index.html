@@ -94,6 +94,32 @@ body.dark .logo{color:var(--cream)}
 body.dark .kicker,body.dark .body-copy{color:var(--cream)}
 body.dark .h2{color:var(--cream)}
 body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,255,255,.2)}
+.nav-right{display:flex;align-items:center;gap:10px}
+.bag-btn{background:transparent;color:inherit;border:1px solid currentColor;border-radius:99px;padding:11px 18px;font:700 11px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer;opacity:.85;transition:.2s}
+.bag-btn:hover{opacity:1;transform:translateY(-1px)}
+#shop{position:fixed;inset:0;z-index:120;display:flex;align-items:center;justify-content:center;padding:20px;visibility:hidden;opacity:0;transition:opacity .3s ease,visibility .3s}
+#shop.open{visibility:visible;opacity:1}
+#shopBg{position:absolute;inset:0;background:rgba(10,6,16,.62);backdrop-filter:blur(10px)}
+#shopCard{position:relative;width:min(860px,100%);max-height:88vh;max-height:88dvh;overflow:auto;background:#F4F0E8;color:#111;border-radius:28px;padding:28px;box-shadow:0 30px 80px rgba(0,0,0,.45)}
+#shopCard h2{font-family:'Inter Tight';font-weight:900;font-size:clamp(28px,4vw,44px);letter-spacing:-.04em;line-height:.95}
+#shopCard .sub{font-size:13px;opacity:.6;margin-top:6px}
+#shopClose{position:absolute;top:16px;right:16px;width:38px;height:38px;border-radius:50%;border:1px solid rgba(17,17,17,.2);background:none;font-size:16px;cursor:pointer;color:#111}
+#shopGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:20px}
+@media(max-width:700px){#shopGrid{grid-template-columns:1fr 1fr}}
+.p-card{background:#fff;border:1px solid rgba(17,17,17,.1);border-radius:20px;padding:16px;display:flex;flex-direction:column;gap:8px;transition:.2s}
+.p-card.feat{outline:2px solid #FF477E}
+.p-dot{width:100%;height:74px;border-radius:14px;box-shadow:inset 0 3px 8px rgba(255,255,255,.75),inset 0 -6px 14px rgba(0,0,0,.12)}
+.p-card h4{font-family:'Inter Tight';font-weight:800;font-size:17px;letter-spacing:-.02em}
+.p-card p{font-size:12px;opacity:.65;line-height:1.5;flex:1}
+.p-row{display:flex;align-items:center;justify-content:space-between;margin-top:4px}
+.p-price{font-weight:800;font-size:15px}
+.p-add{background:#111;color:#F4F0E8;border:none;border-radius:99px;padding:9px 16px;font:700 11px 'Plus Jakarta Sans';letter-spacing:.08em;cursor:pointer;transition:.2s}
+.p-add:hover{background:#FF477E}
+.p-add.added{background:#1a9e5c}
+#shopFoot{display:flex;align-items:center;justify-content:space-between;margin-top:18px;font-size:13px;font-weight:700}
+#checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
+#toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 </head>
 <body class="dark">
@@ -118,8 +144,23 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <button data-goto="tech">MATERIAL</button>
 </div>
 </div>
+<div class="nav-right">
+<button class="bag-btn" id="bagBtn">BAG (<span id="bagCount">0</span>)</button>
 <button class="nav-cta" id="navDrop">DROP THE JELLY ↓</button>
+</div>
 </nav>
+<div id="shop" aria-hidden="true">
+<div id="shopBg"></div>
+<div id="shopCard">
+<button id="shopClose" title="Close">✕</button>
+<div class="kicker" id="shopKicker">JELL IT · SHOP</div>
+<h2 id="shopTitle">PICK YOUR JELLY.</h2>
+<p class="sub">Tap a building, the vending machine or an orbiting jelly in 3D to jump straight to its flavour. Then add to bag.</p>
+<div id="shopGrid"></div>
+<div id="shopFoot"><span id="bagLine">Bag: 0 items · $0</span><button id="checkout">CHECKOUT →</button></div>
+</div>
+</div>
+<div id="toast"></div>
 
 <section class="hero">
 <div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop</div>
@@ -298,6 +339,7 @@ function clearOf(x,z,pad=1.2){
   return true;
 }
 function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
+let city=null;
 {
   // ---- clear segmentation: wider base + non-overlapping zones with exclusion ----
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
@@ -336,11 +378,11 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
   }
   // BUILDINGS FIRST — reserve footprints so nothing grows into them
   const buildingDefs=[
-    {x:-5.5,z:2.5,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3},
-    {x:5.5,z:3.0,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4},
-    {x:6.5,z:-3.5,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2},
-    {x:-2.0,z:-6.0,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4},
-    {x:-7.0,z:-2.5,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2},
+    {x:-5.5,z:2.5,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3, product:'berry'},
+    {x:5.5,z:3.0,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4, product:'mango'},
+    {x:6.5,z:-3.5,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2, product:'lime'},
+    {x:-2.0,z:-6.0,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4, product:'cocktail'},
+    {x:-7.0,z:-2.5,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2, product:'espresso'},
   ];
   buildingDefs.forEach(b=> addObstacle(b.x,b.z, Math.max(b.w,b.d)*0.75+0.6));
   addObstacle(0,7.5,2.2); // arch gate
@@ -380,8 +422,8 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
   buildVoxSet(mush,'#FF8FAB',.01);
   // ---- SHAPED ARCHITECTURE — where voxel stops, real form begins (intelligent jelly conversion) ----
   // island stays voxel (terrain), buildings become shaped — so jelly reads as architecture, not cubes
-  const city=new THREE.Group(); island.add(city);
-  function shapedBuilding({x,z,w,d,h, col='#EDE6D5', winCol='#2a2a30', winRows=3, winCols=2, jellyHex}){
+  city=new THREE.Group(); island.add(city);
+  function shapedBuilding({x,z,w,d,h, col='#EDE6D5', winCol='#2a2a30', winRows=3, winCols=2, jellyHex, product}){
     const grp=new THREE.Group(); grp.position.set(x, TOPY+h/2, z);
     const body=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,0.18), solidMat(col));
     grp.add(body);
@@ -415,6 +457,7 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
     const steps=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.14,0.4,2,0.04), solidMat('#DCD0B8')); steps.position.set(0,-h/2+0.07, d/2+0.2); grp.add(steps);
     const door=new THREE.Mesh(new RoundedBoxGeometry(0.6,0.95,0.06,2,0.05), solidMat('#6B4426')); door.position.set(0,-h/2+0.55, d/2+0.04); grp.add(door);
     const awn=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.08,0.35,2,0.03), solidMat('#FF6FA0')); awn.position.set(0,-h/2+1.15, d/2+0.18); grp.add(awn);
+    if(product) grp.traverse(o=>{ o.userData.productId=product; });
     city.add(grp);
     return grp;
   }
@@ -462,6 +505,7 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
     const box=new THREE.Mesh(new RoundedBoxGeometry(1.1,1.7,0.8,3,0.12), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
     const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.1), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.3, roughness:.15})); glass.position.set(0,0.12,0.42); vm.add(glass);
     const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.18), new THREE.MeshBasicMaterial({color:0xFF477E})); strip.position.set(0,-0.6,0.42); vm.add(strip);
+    vm.traverse(o=>{ o.userData.productId='berry'; o.userData.shopAll=true; });
     city.add(vm);
   }
 }
@@ -477,24 +521,41 @@ function logoTexture(){
   x.clearRect(0,0,512,512);
   x.fillStyle='rgba(255,255,255,.92)';
   x.font='900 150px "Inter Tight", sans-serif'; x.textAlign='center'; x.textBaseline='middle';
-  x.save(); x.translate(256,236); x.letterSpacing='-8px'; x.fillText('jell',0,0); x.restore();
+  x.save(); x.translate(256,236); x.fillText('jell',0,0); x.restore();
   x.font='900 150px "Inter Tight", sans-serif';
   x.save(); x.translate(256,356); x.fillText('it',0,0); x.restore();
   const tx=new THREE.CanvasTexture(cv); tx.colorSpace=THREE.SRGBColorSpace; return tx;
 }
-const logoPlane=new THREE.Mesh(new THREE.PlaneGeometry(2.6,2.6),
-  new THREE.MeshBasicMaterial({map:logoTexture(), transparent:true, opacity:.92}));
-logoPlane.position.set(0,TOPY+2.0,1.815); scene.add(logoPlane);
+// engraved logo — parented to hero so it rotates/squishes WITH the jelly, not floating static.
+// drop your art next to index.html as jell-it-pink.png (front) — auto-used when present, canvas fallback otherwise.
+const logoGroup=new THREE.Group(); hero.add(logoGroup);
+hero.userData.productId='berry';
+function addLogoFace(tex, w, h, px, py, pz, ry){
+  const mat=new THREE.MeshPhysicalMaterial({map:tex, transparent:true, opacity:.96, roughness:.12, metalness:0,
+    transmission:.55, thickness:.6, ior:1.4, clearcoat:1, clearcoatRoughness:.08,
+    emissive:new THREE.Color('#FF477E'), emissiveMap:tex, emissiveIntensity:.14,
+    polygonOffset:true, polygonOffsetFactor:-2, depthWrite:false});
+  const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h), mat);
+  m.position.set(px,py,pz); m.rotation.y=ry; m.renderOrder=3; logoGroup.add(m); return m;
+}
+{
+  const fallback=logoTexture();
+  const faces=[[0,0,1.815,0],[0,0,-1.815,Math.PI],[1.815,0,0,Math.PI/2],[-1.815,0,0,-Math.PI/2]];
+  const loader=new THREE.TextureLoader();
+  const apply=(tex)=>{ tex.colorSpace=THREE.SRGBColorSpace; tex.anisotropy=4; faces.forEach(([px,py,pz,ry])=>addLogoFace(tex,2.6,2.6,px,py,pz,ry)); };
+  loader.load('jell-it-pink.png', apply, undefined, ()=>apply(fallback));
+}
 // mini jellies crowning the hero — larger
 const crownDefs=[
-  {g:new RoundedBoxGeometry(.9,.9,.9,3,0.16), c:'#FF9F1C', p:[1.1,5.2,.4]},
-  {g:new THREE.SphereGeometry(.44,18,18), c:'#FF6FA0', p:[-.9,5.05,-.3]},
-  {g:new RoundedBoxGeometry(.58,.58,.58,2,0.11), c:'#B678FF', p:[-.15,5.45,.7]},
-  {g:new THREE.SphereGeometry(.3,14,14), c:'#FF9F1C', p:[.3,5.6,-.5]},
+  {g:new RoundedBoxGeometry(.9,.9,.9,3,0.16), c:'#FF9F1C', p:[1.1,5.2,.4], prod:'mango'},
+  {g:new THREE.SphereGeometry(.44,18,18), c:'#FF6FA0', p:[-.9,5.05,-.3], prod:'berry'},
+  {g:new RoundedBoxGeometry(.58,.58,.58,2,0.11), c:'#B678FF', p:[-.15,5.45,.7], prod:'cocktail'},
+  {g:new THREE.SphereGeometry(.3,14,14), c:'#FF9F1C', p:[.3,5.6,-.5], prod:'mango'},
 ];
 const crownMeshes=[];
 for(const d of crownDefs){
   const m=new THREE.Mesh(d.g, jellyMat(d.c,.09)); m.material.transmission=.95;
+  m.userData.productId=d.prod;
   m.position.set(d.p[0],d.p[1],d.p[2]); m.rotation.set(rnd(0,1),rnd(0,3),0); scene.add(m);
   alwaysJelly.push(m.material); crownMeshes.push(m);
 }
@@ -579,24 +640,26 @@ const clouds=[];
 const floaters=[], gallery=[];
 {
   const defs=[
-    {s:.72,c:'#FF9F1C'},{s:.58,c:'#FF477E'},{s:.5,c:'#A8E934'},
-    {s:.62,c:'#865DFF'},{s:.44,c:'#35A7FF'},
+    {s:.72,c:'#FF9F1C',p:'mango'},{s:.58,c:'#FF477E',p:'berry'},{s:.5,c:'#A8E934',p:'lime'},
+    {s:.62,c:'#865DFF',p:'cocktail'},{s:.44,c:'#35A7FF',p:'cocktail'},
   ];
   defs.forEach((d,i)=>{
     const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
+    m.userData.productId=d.p;
     const a=(i/defs.length)*6.28, r=6.5+i*.7;
     m.position.set(Math.cos(a)*r, 2+i*.8, Math.sin(a)*r);
     m.rotation.set(rnd(0,1),rnd(0,3),0); scene.add(m);
     floaters.push({m,baseY:m.position.y,ph:rnd(0,6),sp:.5+rnd(0,.5),vel:new THREE.Vector3(),squish:0,orb:{a,r,sp:.08+rnd(0,.12)}});
   });
   const gdefs=[
-    {s:.6,c:'#5a2a10'},{s:.66,c:'#FF9F1C'},{s:.55,c:'#A8E934'},
-    {s:.6,c:'#FF477E'},{s:.5,c:'#F4F0E8'},{s:.58,c:'#865DFF'},
+    {s:.6,c:'#5a2a10',p:'espresso'},{s:.66,c:'#FF9F1C',p:'mango'},{s:.55,c:'#A8E934',p:'lime'},
+    {s:.6,c:'#FF477E',p:'berry'},{s:.5,c:'#F4F0E8',p:'milk'},{s:.58,c:'#865DFF',p:'cocktail'},
   ];
   gdefs.forEach((d,i)=>{
     const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
+    m.userData.productId=d.p;
     const a=(i/gdefs.length)*6.28+.5, r=8+i*.5;
     m.position.set(Math.cos(a)*r, 4.5+(i%3), Math.sin(a)*r);
     m.rotation.set(rnd(0,1),rnd(0,3),0); scene.add(m);
@@ -617,7 +680,7 @@ FLAVOURS.forEach((f,i)=>{
   const a=(i/FLAVOURS.length)*Math.PI*2+.3;
   const t=new THREE.Mesh(new THREE.TorusGeometry(.7,.1,14,36), new THREE.MeshStandardMaterial({color:new THREE.Color(f.color),emissive:new THREE.Color(f.color),emissiveIntensity:.9,roughness:.2}));
   t.position.set(Math.cos(a)*11.5,2.6+i*.35,Math.sin(a)*11.5);
-  t.userData.flav=f; scene.add(t); portals.push(t);
+  t.userData.flav=f; t.userData.productId=(f.id==='coffee'?'espresso':f.id); scene.add(t); portals.push(t);
 });
 
 // ---- hero droplet ----
@@ -670,6 +733,7 @@ let mx=0,my=0;
 let camYaw=0, camPitch=0, userZoom=0;
 let camDragging=false, lastPX=0, lastPY=0;
 const pointers=new Map(); let pinchD=0;
+let downX=0, downY=0, downT=0;
 function ptrNDC(e){ return {x:(e.clientX/innerWidth)*2-1, y:-(e.clientY/innerHeight)*2+1}; }
 function jellyRec(o){ return floaters.find(f=>f.m===o)||gallery.find(g=>g.m===o)||null; }
 canvas.addEventListener('pointermove',e=>{
@@ -705,7 +769,7 @@ canvas.addEventListener('pointermove',e=>{
   }
 });
 canvas.addEventListener('pointerdown',e=>{
-  down=true;
+  down=true; downX=e.clientX; downY=e.clientY; downT=performance.now();
   pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
   if(pointers.size===2){ const [a,b]=[...pointers.values()]; pinchD=Math.hypot(a.x-b.x,a.y-b.y); dragged=null; camDragging=false; return; }
   const n=ptrNDC(e); ptr.set(n.x,n.y); ray.setFromCamera(ptr,camera);
@@ -727,7 +791,22 @@ canvas.addEventListener('pointerdown',e=>{
   } else { camDragging=true; lastPX=e.clientX; lastPY=e.clientY; }
   try{canvas.setPointerCapture(e.pointerId)}catch{}
 });
-function endDrag(e){ down=false; pointers.delete(e.pointerId); pinchD=0; camDragging=false; if(dragged){ dragged.vel.multiplyScalar(1.7); dragged=null;} try{canvas.releasePointerCapture(e.pointerId)}catch{} }
+function endDrag(e){
+  const wasTap = (performance.now()-downT<450) && Math.hypot((e.clientX||downX)-downX,(e.clientY||downY)-downY)<7 && pointers.size<=1;
+  down=false; pointers.delete(e.pointerId); pinchD=0; camDragging=false;
+  if(dragged){ dragged.vel.multiplyScalar(1.7); dragged=null; }
+  try{canvas.releasePointerCapture(e.pointerId)}catch{}
+  if(wasTap && e.clientX!==undefined && !document.getElementById('shop').classList.contains('open')){
+    const n=ptrNDC(e); ptr.set(n.x,n.y); ray.setFromCamera(ptr,camera);
+    const targets=[city,hero,...crownMeshes,...floaters.map(f=>f.m),...gallery.map(g=>g.m),...portals];
+    const hits=ray.intersectObjects(targets,true);
+    for(const h of hits){
+      let o=h.object, pid=null, all=false;
+      while(o){ if(o.userData && o.userData.productId){ pid=o.userData.productId; all=!!o.userData.shopAll; break; } o=o.parent; }
+      if(pid){ openShop(all?null:pid); blip(.9); break; }
+    }
+  }
+}
 canvas.addEventListener('pointerup',endDrag); canvas.addEventListener('pointercancel',endDrag);
 canvas.addEventListener('wheel',e=>{
   if(e.ctrlKey||e.metaKey){ e.preventDefault(); userZoom=THREE.MathUtils.clamp(userZoom+e.deltaY*.02,-7,9); }
@@ -740,6 +819,49 @@ function pop(x,y,z,color){
 let AC=null;
 function blip(f=.5){ try{ if(!AC)AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended')AC.resume(); const o=AC.createOscillator(),g=AC.createGain(); o.type='sine'; o.frequency.value=240+f*420; g.gain.value=.12; o.connect(g).connect(AC.destination); o.start(); g.gain.exponentialRampToValueAtTime(.001,AC.currentTime+.22); o.stop(AC.currentTime+.23);}catch{} }
 canvas.addEventListener('pointerdown',()=>blip(Math.random()));
+
+// ---- shop: click any building / vending / jelly / portal → layover with product cards + bag ----
+const PRODUCTS=[
+  {id:'espresso', name:'Espresso Jelly', desc:'Dark amber volume. Caramel caustics. The after-hours one.', price:12, color:'#8a4a1a'},
+  {id:'mango', name:'Mango Sculpture', desc:'Golden-orange. Tropical noon in a cube.', price:14, color:'#FF9F1C'},
+  {id:'lime', name:'Lime Glass', desc:'Acid green. Sharp glass-like transmission.', price:14, color:'#A8E934'},
+  {id:'berry', name:'Berry Alien', desc:'Hot pink hero jelly. Dreamy dusk. The icon.', price:16, color:'#FF477E', feat:true},
+  {id:'milk', name:'Milk Cloud', desc:'Soft white panna-cotta jelly. Minimal.', price:12, color:'#F4F0E8'},
+  {id:'cocktail', name:'Cocktail Chrome', desc:'Electric purple / cyan. Nightclub energy.', price:18, color:'#865DFF'},
+];
+let bag={}; try{ bag=JSON.parse(localStorage.getItem('jellit-bag')||'{}'); }catch{ bag={}; }
+const shopEl=document.getElementById('shop'), shopGrid=document.getElementById('shopGrid');
+const bagCountEl=document.getElementById('bagCount'), bagLine=document.getElementById('bagLine');
+function bagTotals(){ let n=0,sum=0; for(const p of PRODUCTS){ const q=bag[p.id]||0; n+=q; sum+=q*p.price; } return {n,sum}; }
+function renderBag(){ const {n,sum}=bagTotals(); bagCountEl.textContent=n; bagLine.textContent=`Bag: ${n} item${n===1?'':'s'} · $${sum}`; try{ localStorage.setItem('jellit-bag',JSON.stringify(bag)); }catch{} }
+function renderShop(focus){
+  const order=[...(focus?[PRODUCTS.find(p=>p.id===focus)]:[]),...PRODUCTS.filter(p=>p.id!==focus)].filter(Boolean);
+  shopGrid.innerHTML='';
+  for(const p of order){
+    const card=document.createElement('div'); card.className='p-card'+(p.feat?' feat':'');
+    card.innerHTML=`<div class="p-dot" style="background:linear-gradient(135deg,${p.color},#ffffff55)"></div><h4>${p.name}</h4><p>${p.desc}</p><div class="p-row"><span class="p-price">$${p.price}</span><button class="p-add">ADD TO BAG</button></div>`;
+    const btn=card.querySelector('.p-add');
+    const paint=()=>{ const q=bag[p.id]||0; btn.textContent=q?`ADDED ×${q}`:'ADD TO BAG'; btn.classList.toggle('added',q>0); };
+    paint();
+    btn.onclick=(ev)=>{ ev.stopPropagation(); bag[p.id]=(bag[p.id]||0)+1; renderBag(); paint(); toast(`${p.name} added to bag`); blip(.9); };
+    shopGrid.appendChild(card);
+  }
+}
+function openShop(focus){
+  renderShop(focus);
+  document.getElementById('shopKicker').textContent=focus?`JELL IT · ${focus.toUpperCase()}`:'JELL IT · SHOP';
+  document.getElementById('shopTitle').textContent=focus?`${PRODUCTS.find(p=>p.id===focus)?.name||'YOUR JELLY'}.`:'PICK YOUR JELLY.';
+  shopEl.classList.add('open'); shopEl.setAttribute('aria-hidden','false');
+}
+function closeShop(){ shopEl.classList.remove('open'); shopEl.setAttribute('aria-hidden','true'); }
+document.getElementById('shopBg').onclick=closeShop;
+document.getElementById('shopClose').onclick=closeShop;
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeShop(); });
+document.getElementById('bagBtn').onclick=()=>openShop(null);
+document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toast(n?`Checkout — ${n} items · $${sum} (demo)`:'Your bag is empty — tap a jelly first'); };
+let toastT=null;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
+renderBag();
 
 let heroSquish=0;
 function doDrop(){
@@ -814,7 +936,6 @@ function animate(now){
     hero.scale.set(1+Math.sin(t*1.2)*.02*w+pu, 1+Math.cos(t*1.5)*.025*w-pu*.6, 1+Math.sin(t*1.1+1)*.02*w+pu);
     hero.rotation.y+=dt*(.15+(jellied?.25:0));
     if(heroMat.userData.shader) heroMat.userData.shader.uniforms.uAmp.value=.05*w+heroSquish*.25;
-    logoPlane.position.y=hero.position.y+Math.sin(t*1.5)*.02;
   }
   for(const m of crownMeshes){ m.rotation.y+=dt*.7; m.rotation.x+=dt*.3; m.position.y+=Math.sin(t*2+m.position.x*3)*dt*.25; }
   // orbiters: bob + orbit + squish + drag velocity
