@@ -121,10 +121,9 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 #checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#shopMarker{position:fixed;z-index:40;transform:translate(-50%,-100%);background:rgba(244,240,232,.92);backdrop-filter:blur(8px);color:#111;font:600 10px 'Plus Jakarta Sans';letter-spacing:.08em;padding:8px 14px;border-radius:99px;border:1px solid rgba(17,17,17,.12);white-space:nowrap;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.22);animation:bob 2.8s ease-in-out infinite;transition:opacity .3s}
+#shopMarker{position:fixed;left:0;top:0;z-index:40;will-change:transform;background:rgba(244,240,232,.92);backdrop-filter:blur(8px);color:#111;font:600 10px 'Plus Jakarta Sans';letter-spacing:.08em;padding:8px 14px;border-radius:99px;border:1px solid rgba(17,17,17,.12);white-space:nowrap;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.22);transition:opacity .3s}
 #shopMarker::after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(244,240,232,.92);border-bottom:none}
 #shopMarker.hide{opacity:0;pointer-events:none}
-@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-4px}}
 </style>
 </head>
 <body class="dark">
@@ -215,11 +214,6 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 </div>
 <div class="footer">JELL IT · SAME LIQUID. NEW REALITY. · SPACE = WOBBLE</div>
 
-<div class="mode-rail">
-<button class="mbtn active" data-mode="poke" title="Poke">👆</button>
-<button class="mbtn" data-mode="squish" title="Squish">🤏</button>
-<button class="mbtn" data-mode="bounce" title="Bounce">🏀</button>
-</div>
 <div class="zoom-pill">
 <button id="zOut" title="Zoom out">−</button>
 <button id="zIn" title="Zoom in">+</button>
@@ -228,9 +222,8 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <div class="bottom">
 <span class="stat" id="fps">60 FPS</span>
 <span class="stat" id="state">BERRY WORLD</span>
-<div class="fdots" id="fdots"></div>
 <span class="stat">JIGGLE</span><input class="range" id="jig" type="range" min="0" max="100" value="65"/>
-<button id="musicBtn" title="Pause music" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;width:30px;height:30px;font-size:14px;cursor:pointer;line-height:1">🔊</button>
+<button id="musicBtn" title="Pause music" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;width:30px;height:30px;font-size:14px;cursor:pointer;line-height:1;display:grid;place-items:center"></button>
 </div>
 
 <script type="module">
@@ -717,9 +710,6 @@ FLAVOURS.forEach(f=>{
   b.onmouseenter=()=>previewFlavour(f); b.onclick=()=>setFlavour(f,true);
   fg.appendChild(b);
 });
-const fd=document.getElementById('fdots');
-FLAVOURS.forEach((f,i)=>{ const d=document.createElement('button'); d.className='fdot'+(f.id==='berry'?' active':''); d.style.background=f.color; d.title=f.name; d.onclick=()=>setFlavour(f,true); fd.appendChild(d);});
-
 let currentFlav=FLAVOURS[3];
 function previewFlavour(f){
   gsap.to(pPink.color,{r:new THREE.Color(f.glow).r,g:new THREE.Color(f.glow).g,b:new THREE.Color(f.glow).b,duration:.5});
@@ -730,7 +720,6 @@ function setFlavour(f){
   document.body.classList.toggle('dark',['coffee','mango','lime','berry','cocktail'].includes(f.id)||true);
   document.body.classList.add('dark');
   if(f.id==='mango'||f.id==='lime') document.body.classList.remove('dark');
-  document.querySelectorAll('.fdot').forEach((d,i)=>d.classList.toggle('active',FLAVOURS[i].id===f.id));
   document.getElementById('state').textContent=f.name.toUpperCase()+(jellied?' · JELLIED':'');
   const bg=new THREE.Color(f.bg), fg2=new THREE.Color(f.fog), sn=new THREE.Color(f.sun);
   gsap.to(scene.background,{r:bg.r,g:bg.g,b:bg.b,duration:1.2});
@@ -906,7 +895,9 @@ function mUnlock(){
   else if(musicOn) mStart();
 }
 const musicBtn=document.getElementById('musicBtn');
-function mPaint(){ musicBtn.textContent=musicOn?'🔊':'🔇'; musicBtn.title=musicOn?'Pause music':'Play music'; }
+const SVG_ON='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="#fff" stroke="none"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>';
+const SVG_OFF='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.45)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z" fill="rgba(255,255,255,.45)" stroke="none"/><line x1="15" y1="9" x2="21" y2="15"/><line x1="21" y1="9" x2="15" y2="15"/></svg>';
+function mPaint(){ musicBtn.innerHTML=musicOn?SVG_ON:SVG_OFF; musicBtn.title=musicOn?'Pause music':'Play music'; }
 musicBtn.onclick=(e)=>{ e.stopPropagation(); musicOn=!musicOn; mPaint(); if(musicOn){ mUnlock(); } else if(mTimer){ clearInterval(mTimer); mTimer=null; } };
 mPaint(); mUnlock();
 addEventListener('pointerdown',function once(){ mUnlock(); },{once:false});
@@ -939,7 +930,7 @@ document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>document.getEl
 document.getElementById('zIn').onclick=()=>{ userZoom=THREE.MathUtils.clamp(userZoom-1.5,-7,9); };
 document.getElementById('zOut').onclick=()=>{ userZoom=THREE.MathUtils.clamp(userZoom+1.5,-7,9); };
 document.getElementById('zOrbit').onclick=(e)=>{ autoOrbit=!autoOrbit; e.target.classList.toggle('on',autoOrbit); };
-document.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>{document.querySelectorAll('.mbtn').forEach(x=>x.classList.remove('active'));b.classList.add('active');mode=b.dataset.mode;});
+
 document.getElementById('jig').oninput=(e)=>jiggle=e.target.value/100;
 addEventListener('keydown',e=>{ if(e.code==='Space'){e.preventDefault(); if(!dropped)doDrop(); else {heroSquish=1; floaters.forEach(f=>f.squish=1); gallery.forEach(f=>f.squish=1); ripples.push({x:0,z:0,t:0,s:3}); blip(.6);} }});
 
@@ -1058,8 +1049,9 @@ function animate(now){
   {
     const mk=document.getElementById('shopMarker');
     if(vmRef && !shopEl.classList.contains('open')){
-      _v3.setFromMatrixPosition(vmRef.matrixWorld); _v3.y+=3.4; _v3.project(camera);
-      if(_v3.z<1){ mk.classList.remove('hide'); mk.style.left=((_v3.x*.5+.5)*innerWidth)+'px'; mk.style.top=((-_v3.y*.5+.5)*innerHeight)+'px'; }
+      vmRef.updateWorldMatrix(true,false);
+      _v3.setFromMatrixPosition(vmRef.matrixWorld); _v3.y+=3.4+Math.sin(t*1.8)*0.12; _v3.project(camera);
+      if(_v3.z<1){ mk.classList.remove('hide'); mk.style.transform=`translate(${(_v3.x*.5+.5)*innerWidth}px,${(-_v3.y*.5+.5)*innerHeight}px) translate(-50%,-100%)`; }
       else mk.classList.add('hide');
       if(vmRef.userData.beacon) vmRef.userData.beacon.material.opacity=0.12+Math.sin(t*2.4)*0.06;
     } else mk.classList.add('hide');
