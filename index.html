@@ -386,10 +386,10 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
     const body=new THREE.Mesh(new RoundedBoxGeometry(w,h,d,4,0.18), solidMat(col));
     grp.add(body);
     register(body, jellyHex||col, 0.018, false);
-    // base plinth + cornice + rooftop parapet — reads as intentional architecture at larger scale
+    // base plinth + cornice + rooftop parapet — offset so no coplanar z-fighting
     const base=new THREE.Mesh(new RoundedBoxGeometry(w+0.22,0.2,d+0.22,2,0.06), solidMat('#DCD0B8')); base.position.y=-h/2+0.1; grp.add(base);
-    const topC=new THREE.Mesh(new RoundedBoxGeometry(w+0.16,0.16,d+0.16,2,0.05), solidMat('#E9DEC9')); topC.position.y=h/2-0.08; grp.add(topC);
-    const parapet=new THREE.Mesh(new RoundedBoxGeometry(w*0.7,0.28,d*0.55,2,0.06), solidMat(col)); parapet.position.y=h/2+0.14; grp.add(parapet);
+    const topC=new THREE.Mesh(new RoundedBoxGeometry(w+0.16,0.16,d+0.16,2,0.05), solidMat('#E9DEC9')); topC.position.y=h/2+0.02; grp.add(topC);
+    const parapet=new THREE.Mesh(new RoundedBoxGeometry(w*0.7,0.28,d*0.55,2,0.06), solidMat(col)); parapet.position.y=h/2+0.24; grp.add(parapet);
     // water tank / rooftop detail on taller buildings
     if(h>4){
       const tank=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.32,0.6,12), solidMat('#CFC8BA')); tank.position.set(w*0.18,h/2+0.45,0); grp.add(tank);
@@ -415,11 +415,6 @@ function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
     const steps=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.14,0.4,2,0.04), solidMat('#DCD0B8')); steps.position.set(0,-h/2+0.07, d/2+0.2); grp.add(steps);
     const door=new THREE.Mesh(new RoundedBoxGeometry(0.6,0.95,0.06,2,0.05), solidMat('#6B4426')); door.position.set(0,-h/2+0.55, d/2+0.04); grp.add(door);
     const awn=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.08,0.35,2,0.03), solidMat('#FF6FA0')); awn.position.set(0,-h/2+1.15, d/2+0.18); grp.add(awn);
-    // side balconies on wide buildings
-    if(w>2.2 && h>2.5){
-      const balc=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.08,0.4,2,0.02), solidMat('#E9DEC9')); balc.position.set(w/2+0.3, 0.3, 0); grp.add(balc);
-      const rail=new THREE.Mesh(new RoundedBoxGeometry(0.9,0.28,0.05,2,0.02), solidMat('#3A3A42')); rail.position.set(w/2+0.3, 0.5, 0.2); grp.add(rail);
-    }
     city.add(grp);
     return grp;
   }
