@@ -121,9 +121,6 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 #checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#shopMarker{position:fixed;left:0;top:0;z-index:40;will-change:transform;background:rgba(244,240,232,.92);backdrop-filter:blur(8px);color:#111;font:600 10px 'Plus Jakarta Sans';letter-spacing:.08em;padding:8px 14px;border-radius:99px;border:1px solid rgba(17,17,17,.12);white-space:nowrap;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.22);transition:opacity .3s}
-#shopMarker::after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(244,240,232,.92);border-bottom:none}
-#shopMarker.hide{opacity:0;pointer-events:none}
 </style>
 </head>
 <body class="dark">
@@ -158,15 +155,14 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <div id="shopBg"></div>
 <div id="shopCard">
 <button id="shopClose" title="Close">✕</button>
-<div class="kicker" id="shopKicker">JELL IT · SHOP</div>
-<h2 id="shopTitle">PICK YOUR JELLY.</h2>
-<p class="sub">Tap the <b>vending machine</b> on the island's east edge to shop. Then add to bag.</p>
+<div class="kicker" id="shopKicker">JELL IT · YOUR BAG</div>
+<h2 id="shopTitle">GOOD PICKS.</h2>
+<p class="sub">Tap the <b>vending machine</b> on the island's east edge — the camera flies in and you pick minis straight off its shelf.</p>
 <div id="shopGrid"></div>
 <div id="shopFoot"><span id="bagLine">Bag: 0 items · $0</span><button id="checkout">CHECKOUT →</button></div>
 </div>
 </div>
 <div id="toast"></div>
-<div id="shopMarker" title="Open shop">🛒 Tap the vending machine to shop</div>
 
 <section class="hero">
 <div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop · tap the vending machine to shop</div>
@@ -515,6 +511,35 @@ const _v3=new THREE.Vector3();
     const beacon=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.5,7,12,1,true),
       new THREE.MeshBasicMaterial({color:0xFF477E,transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
     beacon.position.y=4.2; beacon.renderOrder=4; vm.add(beacon); vm.userData.beacon=beacon;
+    // product shelf — the catalog lives IN the machine: 6 mini jellies, tap one to bag it
+    const shelfCols=['#8a4a1a','#FF9F1C','#A8E934','#FF477E','#F4F0E8','#865DFF'];
+    const shelfIds=['espresso','mango','lime','berry','milk','cocktail'];
+    [0.28,-0.24].forEach((sy,row)=>{
+      const board=new THREE.Mesh(new RoundedBoxGeometry(1.6,0.07,0.5,2,0.02), solidMat('#E9DEC9'));
+      board.position.set(0,sy,0.62); vm.add(board);
+    });
+    shelfCols.forEach((c,i)=>{
+      const col=i%3, row=Math.floor(i/3);
+      const mini=new THREE.Mesh(new RoundedBoxGeometry(0.3,0.3,0.3,2,0.06), jellyMat(c,.1));
+      mini.material.transmission=.9;
+      mini.position.set((col-1)*0.5, (row===0?0.28:-0.24)+0.19, 0.62);
+      mini.userData.productId=shelfIds[i]; mini.userData.shelf=true;
+      vm.add(mini); alwaysJelly.push(mini.material);
+    });
+    // floating shop tag — in-world sprite, rides with the machine, zero DOM lag
+    {
+      const cv=document.createElement('canvas'); cv.width=512; cv.height=128;
+      const x=cv.getContext('2d');
+      x.fillStyle='rgba(244,240,232,.95)';
+      x.beginPath(); x.roundRect(6,14,500,100,50); x.fill();
+      x.fillStyle='#111'; x.font='700 44px "Plus Jakarta Sans", sans-serif'; x.textAlign='center'; x.textBaseline='middle';
+      x.fillText('TAP TO SHOP',256,66);
+      const tex=new THREE.CanvasTexture(cv); tex.colorSpace=THREE.SRGBColorSpace;
+      const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:tex,transparent:true,depthWrite:false}));
+      spr.scale.set(3.1,0.78,1); spr.position.set(0,2.75,0); spr.renderOrder=6;
+      spr.userData.shopAll=true; spr.userData.productId='berry';
+      vm.add(spr); vm.userData.marker=spr;
+    }
     city.add(vm); vmRef=vm;
   }
 }
@@ -642,7 +667,7 @@ const clouds=[];
     for(let i=0;i<4;i++){ const b=new THREE.Mesh(new THREE.SphereGeometry((.7+Math.random()*.5)*s,14,14),cm); b.position.set(i*1.05*s-1.5*s,Math.random()*.4,Math.random()*.5); b.scale.y=.62; g.add(b); }
     g.position.set(x,y,z); scene.add(g); clouds.push({g,ph:Math.random()*6});
   }
-  cloud(-11,4,-11,1.5); cloud(9,6,-9,1.2); cloud(-9,-2,9,1.3); cloud(11,1,9,1.1); cloud(0,8,7,1.4); cloud(-4,-6,-6,1.6);
+  cloud(-22,11,-14,1.6); cloud(20,13,-16,1.3); cloud(-19,10,17,1.4); cloud(23,12,15,1.2); cloud(2,16,8,1.5); cloud(-8,-7,-22,1.7);
 }
 
 // ---- orbiting jelly cubes (the gallery) ----
@@ -739,6 +764,15 @@ let camYaw=0, camPitch=0, userZoom=0;
 let camDragging=false, lastPX=0, lastPY=0;
 const pointers=new Map(); let pinchD=0;
 let downX=0, downY=0, downT=0;
+// vending close-up — tap the machine and the camera flies into product frame
+let focusUntil=0; const focusPt=new THREE.Vector3();
+function focusVending(){
+  if(!vmRef) return;
+  vmRef.updateWorldMatrix(true,false);
+  focusPt.setFromMatrixPosition(vmRef.matrixWorld); focusPt.y+=1.0;
+  focusUntil=performance.now()+7000; blip(.9);
+  toast('Pick a mini jelly on the machine');
+}
 function ptrNDC(e){ return {x:(e.clientX/innerWidth)*2-1, y:-(e.clientY/innerHeight)*2+1}; }
 function jellyRec(o){ return floaters.find(f=>f.m===o)||gallery.find(g=>g.m===o)||null; }
 canvas.addEventListener('pointermove',e=>{
@@ -801,14 +835,19 @@ function endDrag(e){
   down=false; pointers.delete(e.pointerId); pinchD=0; camDragging=false;
   if(dragged){ dragged.vel.multiplyScalar(1.7); dragged=null; }
   try{canvas.releasePointerCapture(e.pointerId)}catch{}
-  if(wasTap && e.clientX!==undefined && !document.getElementById('shop').classList.contains('open')){
+  if(wasTap && e.clientX!==undefined){
     const n=ptrNDC(e); ptr.set(n.x,n.y); ray.setFromCamera(ptr,camera);
     const targets=[city,hero,...crownMeshes,...floaters.map(f=>f.m),...gallery.map(g=>g.m),...portals];
     const hits=ray.intersectObjects(targets,true);
     for(const h of hits){
-      let o=h.object, shop=false;
-      while(o){ if(o.userData && o.userData.shopAll){ shop=true; break; } o=o.parent; }
-      if(shop){ openShop(null); blip(.9); break; }
+      let o=h.object, shelf=null, vend=false;
+      while(o){ if(o.userData){ if(o.userData.shelf){ shelf=o.userData.productId; break; } if(o.userData.shopAll){ vend=true; break; } } o=o.parent; }
+      if(shelf){
+        const p=PRODUCTS.find(q=>q.id===shelf);
+        if(p){ bag[p.id]=(bag[p.id]||0)+1; renderBag(); toast(`${p.name} added to bag`); blip(.9); pop(h.point.x,h.point.y+.3,h.point.z,p.color); }
+        break;
+      }
+      if(vend){ focusVending(); break; }
     }
   }
 }
@@ -839,31 +878,29 @@ const shopEl=document.getElementById('shop'), shopGrid=document.getElementById('
 const bagCountEl=document.getElementById('bagCount'), bagLine=document.getElementById('bagLine');
 function bagTotals(){ let n=0,sum=0; for(const p of PRODUCTS){ const q=bag[p.id]||0; n+=q; sum+=q*p.price; } return {n,sum}; }
 function renderBag(){ const {n,sum}=bagTotals(); bagCountEl.textContent=n; bagLine.textContent=`Bag: ${n} item${n===1?'':'s'} · $${sum}`; try{ localStorage.setItem('jellit-bag',JSON.stringify(bag)); }catch{} }
-function renderShop(focus){
-  const order=[...(focus?[PRODUCTS.find(p=>p.id===focus)]:[]),...PRODUCTS.filter(p=>p.id!==focus)].filter(Boolean);
+function renderBagPanel(){
   shopGrid.innerHTML='';
-  for(const p of order){
-    const card=document.createElement('div'); card.className='p-card'+(p.feat?' feat':'');
-    card.innerHTML=`<div class="p-dot" style="background:linear-gradient(135deg,${p.color},#ffffff55)"></div><h4>${p.name}</h4><p>${p.desc}</p><div class="p-row"><span class="p-price">$${p.price}</span><button class="p-add">ADD TO BAG</button></div>`;
-    const btn=card.querySelector('.p-add');
-    const paint=()=>{ const q=bag[p.id]||0; btn.textContent=q?`ADDED ×${q}`:'ADD TO BAG'; btn.classList.toggle('added',q>0); };
-    paint();
-    btn.onclick=(ev)=>{ ev.stopPropagation(); bag[p.id]=(bag[p.id]||0)+1; renderBag(); paint(); toast(`${p.name} added to bag`); blip(.9); };
+  const ids=PRODUCTS.filter(p=>bag[p.id]);
+  if(!ids.length){ shopGrid.innerHTML='<p class="sub" style="grid-column:1/-1">Empty — tap the vending machine, fly in close, and tap a mini jelly on its shelf.</p>'; return; }
+  for(const p of ids){
+    const q=bag[p.id];
+    const card=document.createElement('div'); card.className='p-card'; card.style.gridColumn='1/-1'; card.style.flexDirection='row'; card.style.alignItems='center';
+    card.innerHTML=`<div class="p-dot" style="background:linear-gradient(135deg,${p.color},#ffffff55);width:56px;height:56px;flex:none"></div><div style="flex:1"><h4>${p.name}</h4><p>$${p.price} each</p></div><div class="p-row" style="gap:8px"><button class="p-add" data-a="-">−</button><span class="p-price">×${q}</span><button class="p-add" data-a="+">+</button></div>`;
+    const [minus,plus]=card.querySelectorAll('.p-add');
+    minus.onclick=()=>{ bag[p.id]--; if(bag[p.id]<=0) delete bag[p.id]; renderBag(); renderBagPanel(); };
+    plus.onclick=()=>{ bag[p.id]++; renderBag(); renderBagPanel(); };
     shopGrid.appendChild(card);
   }
 }
-function openShop(focus){
-  renderShop(focus);
-  document.getElementById('shopKicker').textContent=focus?`JELL IT · ${focus.toUpperCase()}`:'JELL IT · SHOP';
-  document.getElementById('shopTitle').textContent=focus?`${PRODUCTS.find(p=>p.id===focus)?.name||'YOUR JELLY'}.`:'PICK YOUR JELLY.';
+function openBag(){
+  renderBagPanel();
   shopEl.classList.add('open'); shopEl.setAttribute('aria-hidden','false');
 }
-function closeShop(){ shopEl.classList.remove('open'); shopEl.setAttribute('aria-hidden','true'); }
-document.getElementById('shopBg').onclick=closeShop;
-document.getElementById('shopClose').onclick=closeShop;
-addEventListener('keydown',e=>{ if(e.key==='Escape') closeShop(); });
-document.getElementById('bagBtn').onclick=()=>openShop(null);
-document.getElementById('shopMarker').onclick=()=>openShop(null);
+function closeBag(){ shopEl.classList.remove('open'); shopEl.setAttribute('aria-hidden','true'); }
+document.getElementById('shopBg').onclick=closeBag;
+document.getElementById('shopClose').onclick=closeBag;
+addEventListener('keydown',e=>{ if(e.key==='Escape') closeBag(); });
+document.getElementById('bagBtn').onclick=()=>openBag();
 document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toast(n?`Checkout — ${n} items · $${sum} (demo)`:'Your bag is empty — tap a jelly first'); };
 let toastT=null;
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -1023,38 +1060,33 @@ function animate(now){
     if(rVisor) rVisor.material.emissiveIntensity=0.35+Math.sin(t*2)*0.1;
   }
   // clouds drift
-  for(const c of clouds){ c.g.position.x+=dt*.22; if(c.g.position.x>17)c.g.position.x=-17; }
+  for(const c of clouds){ c.g.position.x+=dt*.22; if(c.g.position.x>45)c.g.position.x=-45; }
   for(const p of portals){ p.rotation.y+=dt*.8; p.rotation.x=Math.sin(t+p.position.x)*.3; p.position.y+=Math.sin(t*1.2+p.position.x)*dt*.25; }
   // island breathing (whole-group float, subtle so voxels stay registered)
   island.position.y=Math.sin(t*.6)*.22*jiggle;
   island.rotation.y=Math.sin(t*.12)*.03;
   // pops
   for(let i=pops.children.length-1;i>=0;i--){ const p=pops.children[i]; p.position.addScaledVector(p.userData.v,dt*8); p.userData.v.y-=dt*1.2; p.userData.life-=dt*1.5; p.material.opacity=p.userData.life; if(p.userData.life<=0)pops.remove(p); }
-  // camera — single screen, no scroll
+  // camera — single screen, no scroll; vending tap flies into product frame
   const sp=0;
-  const baseDist=(30-sp*8)+userZoom;
+  const focusing=performance.now()<focusUntil;
+  const baseDist=(focusing?10:30-sp*8)+userZoom;
   if(autoOrbit) orbitA+=dt*.28;
   const yaw=orbitA+camYaw;
-  const tx=Math.sin(yaw)*baseDist*.62+mx*1.1;
-  const tz=Math.cos(yaw)*baseDist*.62+baseDist*.38;
-  const ty=10+Math.sin(t*.35)*.3-camPitch*10+sp*1.4;
-  camera.position.x+=(tx-camera.position.x)*Math.min(1,dt*3);
-  camera.position.y+=(ty-camera.position.y)*Math.min(1,dt*3);
-  camera.position.z+=(tz-camera.position.z)*Math.min(1,dt*3);
-  lookT.x+=(mx*.8-lookT.x)*Math.min(1,dt*2);
-  lookT.y+=((1.6+sp*1.6+my*.5)-lookT.y)*Math.min(1,dt*2);
+  const tx=focusing?focusPt.x+Math.sin(yaw)*7:Math.sin(yaw)*baseDist*.62+mx*1.1;
+  const tz=focusing?focusPt.z+Math.cos(yaw)*7:Math.cos(yaw)*baseDist*.62+baseDist*.38;
+  const ty=focusing?focusPt.y+1.6:10+Math.sin(t*.35)*.3-camPitch*10+sp*1.4;
+  camera.position.x+=(tx-camera.position.x)*Math.min(1,dt*2.2);
+  camera.position.y+=(ty-camera.position.y)*Math.min(1,dt*2.2);
+  camera.position.z+=(tz-camera.position.z)*Math.min(1,dt*2.2);
+  lookT.x+=((focusing?focusPt.x:mx*.8)-lookT.x)*Math.min(1,dt*2);
+  lookT.y+=((focusing?focusPt.y:1.6+sp*1.6+my*.5)-lookT.y)*Math.min(1,dt*2);
   camera.lookAt(lookT);
   if(jellied){ project(document.getElementById('fl1'),flAnchors[0]()); project(document.getElementById('fl2'),flAnchors[1]()); project(document.getElementById('fl3'),flAnchors[2]()); project(document.getElementById('fl4'),flAnchors[3]()); }
-  // shop marker — pinned above the vending machine, always visible until shop opens
-  {
-    const mk=document.getElementById('shopMarker');
-    if(vmRef && !shopEl.classList.contains('open')){
-      vmRef.updateWorldMatrix(true,false);
-      _v3.setFromMatrixPosition(vmRef.matrixWorld); _v3.y+=3.4+Math.sin(t*1.8)*0.12; _v3.project(camera);
-      if(_v3.z<1){ mk.classList.remove('hide'); mk.style.transform=`translate(${(_v3.x*.5+.5)*innerWidth}px,${(-_v3.y*.5+.5)*innerHeight}px) translate(-50%,-100%)`; }
-      else mk.classList.add('hide');
-      if(vmRef.userData.beacon) vmRef.userData.beacon.material.opacity=0.12+Math.sin(t*2.4)*0.06;
-    } else mk.classList.add('hide');
+  // beacon pulse + marker bob — constant motion, no resets
+  if(vmRef){
+    if(vmRef.userData.beacon) vmRef.userData.beacon.material.opacity=0.12+Math.sin(t*2.4)*0.05;
+    if(vmRef.userData.marker) vmRef.userData.marker.position.y=2.75+Math.sin(t*1.8)*0.14;
   }
   renderer.render(scene,camera);
   frames++; if(now-lastFps>600){ document.getElementById('fps').textContent=Math.round(frames*1000/(now-lastFps))+' FPS'; frames=0; lastFps=now; }
