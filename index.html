@@ -120,10 +120,10 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 #checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-#shopMarker{position:fixed;z-index:40;transform:translate(-50%,-100%);background:#FF477E;color:#fff;font:800 11px 'Plus Jakarta Sans';letter-spacing:.1em;padding:10px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;box-shadow:0 10px 30px rgba(255,71,126,.5);animation:bob 1.6s ease-in-out infinite;transition:opacity .3s}
-#shopMarker::after{content:'';position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:8px solid transparent;border-top-color:#FF477E;border-bottom:none}
+#shopMarker{position:fixed;z-index:40;transform:translate(-50%,-100%);background:rgba(244,240,232,.92);backdrop-filter:blur(8px);color:#111;font:600 10px 'Plus Jakarta Sans';letter-spacing:.08em;padding:8px 14px;border-radius:99px;border:1px solid rgba(17,17,17,.12);white-space:nowrap;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,.22);animation:bob 2.8s ease-in-out infinite;transition:opacity .3s}
+#shopMarker::after{content:'';position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);border:7px solid transparent;border-top-color:rgba(244,240,232,.92);border-bottom:none}
 #shopMarker.hide{opacity:0;pointer-events:none}
-@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-9px}}
+@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-4px}}
 </style>
 </head>
 <body class="dark">
@@ -166,7 +166,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 </div>
 </div>
 <div id="toast"></div>
-<div id="shopMarker" title="Open shop">🛒 TAP VENDING MACHINE TO SHOP</div>
+<div id="shopMarker" title="Open shop">🛒 Tap the vending machine to shop</div>
 
 <section class="hero">
 <div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop · tap the vending machine to shop</div>
