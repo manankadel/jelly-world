@@ -124,7 +124,8 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 </head>
 <body class="dark">
 <div class="loader" id="loader">
-<div class="loader-logo">jell <span class="it">it</span></div>
+<img id="loaderLogo" src="jell-it-pink.png" alt="jell it" style="width:min(300px,60vw);display:none;filter:drop-shadow(0 18px 40px rgba(255,71,126,.35))" onload="this.style.display='block';document.getElementById('loaderTxt').style.display='none'" onerror="this.remove()">
+<div class="loader-logo" id="loaderTxt">jell <span class="it">it</span></div>
 <div class="loader-sub">TURN YOUR WORLD INTO JELLY</div>
 <div class="loader-bar"><div class="loader-fill" id="lfill"></div></div>
 </div>
@@ -155,7 +156,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <button id="shopClose" title="Close">✕</button>
 <div class="kicker" id="shopKicker">JELL IT · SHOP</div>
 <h2 id="shopTitle">PICK YOUR JELLY.</h2>
-<p class="sub">Tap a building, the vending machine or an orbiting jelly in 3D to jump straight to its flavour. Then add to bag.</p>
+<p class="sub">Tap the <b>vending machine</b> on the island's east edge to shop. Then add to bag.</p>
 <div id="shopGrid"></div>
 <div id="shopFoot"><span id="bagLine">Bag: 0 items · $0</span><button id="checkout">CHECKOUT →</button></div>
 </div>
@@ -163,7 +164,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <div id="toast"></div>
 
 <section class="hero">
-<div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop</div>
+<div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop · tap the vending machine to shop</div>
 </section>
 
 <div class="sections">
@@ -223,6 +224,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <span class="stat" id="state">BERRY WORLD</span>
 <div class="fdots" id="fdots"></div>
 <span class="stat">JIGGLE</span><input class="range" id="jig" type="range" min="0" max="100" value="65"/>
+<button id="musicBtn" title="Pause music" style="background:none;border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:99px;width:30px;height:30px;font-size:14px;cursor:pointer;line-height:1">🔊</button>
 </div>
 
 <script type="module">
@@ -238,7 +240,7 @@ const canvas=document.getElementById('bg');
 const scene=new THREE.Scene();
 const DARKBG=new THREE.Color('#16121f');
 scene.background=DARKBG.clone();
-scene.fog=new THREE.Fog(DARKBG.clone(), 34, 90);
+scene.fog=new THREE.Fog(DARKBG.clone(), 42, 115);
 const renderer=new THREE.WebGLRenderer({canvas,antialias:true,powerPreference:'high-performance'});
 renderer.setPixelRatio(Math.min(1.75,devicePixelRatio));
 renderer.setSize(innerWidth,innerHeight);
@@ -246,8 +248,8 @@ renderer.toneMapping=THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure=1.1;
 const pmrem=new THREE.PMREMGenerator(renderer);
 scene.environment=pmrem.fromScene(new RoomEnvironment(),.04).texture;
-const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,200);
-camera.position.set(0,10.5,34);
+const camera=new THREE.PerspectiveCamera(38,innerWidth/innerHeight,.1,240);
+camera.position.set(0,12,40);
 const lookT=new THREE.Vector3(0,2.2,0);
 let autoOrbit=false, orbitA=.5;
 
@@ -345,22 +347,21 @@ let city=null;
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
   const creams=['#EFE6D4','#E9DEC9','#F2EBDA','#E3D6BE'];
   const greens=['#5FAE54','#54A148','#6FBF5E'];
-  const R=10.6; // wider base
+  const R=12.6; // bigger base — room to segment every zone with breathing space
   // base island — leave central plaza empty for hero
   for(let ly=0;ly<2;ly++){
-    for(let gx=-12;gx<=12;gx++) for(let gz=-12;gz<=12;gz++){
+    for(let gx=-14;gx<=14;gx++) for(let gz=-14;gz<=14;gz++){
       const jx=gx+rnd(-.06,.06), jz=gz+rnd(-.06,.06);
       const d=Math.hypot(jx,jz);
-      const plaza=Math.hypot(jx,jz) < 3.0 && ly===0; // bigger plaza for bigger hero
+      const plaza=Math.hypot(jx,jz) < 3.2 && ly===0; // plaza for hero focal point
       if(!plaza && d < R-(ly*.65)+rnd(-.25,.25)){
         top.push({x:gx*.98, y:-ly, z:gz*.98, s:1.0, c:pick(creams)});
-        if(ly===0 && Math.random()<.10) grass.push({x:gx*.98+rnd(-.15,.15), y:.75, z:gz*.98+rnd(-.15,.15), s:rnd(.4,.6), c:pick(greens)});
       }
     }
   }
   for(let ly=2;ly<=7;ly++){
     const r=R-1.1-ly*.85;
-    for(let gx=-12;gx<=12;gx++) for(let gz=-12;gz<=12;gz++){
+    for(let gx=-14;gx<=14;gx++) for(let gz=-14;gz<=14;gz++){
       const d=Math.hypot(gx,gz);
       if(d < r+rnd(-.35,.35) && Math.random()>.12){
         under.push({x:gx*.96, y:-ly, z:gz*.96, s:rnd(.85,1.0), c:pick(['#DCD0B8','#D2C4AA','#E2D7C0'])});
@@ -378,39 +379,42 @@ let city=null;
   }
   // BUILDINGS FIRST — reserve footprints so nothing grows into them
   const buildingDefs=[
-    {x:-5.5,z:2.5,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3, product:'berry'},
-    {x:5.5,z:3.0,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4, product:'mango'},
-    {x:6.5,z:-3.5,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2, product:'lime'},
-    {x:-2.0,z:-6.0,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4, product:'cocktail'},
-    {x:-7.0,z:-2.5,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2, product:'espresso'},
+    {x:-6.3,z:2.9,w:2.4,d:2.4,h:5.2, col:'#EDE6D5', jellyHex:'#FFB3C2', winRows:5, winCols:3, product:'berry'},
+    {x:6.3,z:3.4,w:2.9,d:2.1,h:3.4, col:'#EFE6D4', jellyHex:'#FFD6A0', winRows:3, winCols:4, product:'mango'},
+    {x:7.4,z:-4.0,w:1.9,d:1.9,h:6.4, col:'#F2EBDA', jellyHex:'#C2F0A8', winRows:7, winCols:2, product:'lime'},
+    {x:-2.3,z:-6.9,w:3.1,d:2.1,h:2.6, col:'#E9DEC9', jellyHex:'#C9B8FF', winRows:2, winCols:4, product:'cocktail'},
+    {x:-8.0,z:-2.9,w:1.8,d:1.8,h:3.0, col:'#EDE6D5', jellyHex:'#FFD6E0', winRows:3, winCols:2, product:'espresso'},
   ];
   buildingDefs.forEach(b=> addObstacle(b.x,b.z, Math.max(b.w,b.d)*0.75+0.6));
-  addObstacle(0,7.5,2.2); // arch gate
-  addObstacle(6.4+1.6,0.4,1.2); // vending (updated x below)
-  // ZONE 1 — NW forest (manual clear placement, no gating removal)
-  [[-8.2,6.2,1.7],[-6.6,7.0,1.5],[-8.8,4.2,1.3],[-7.4,5.2,1.1],[-9.2,2.8,1.0]].forEach(([tx,tz,s])=>{
+  addObstacle(0,8.6,2.2); // arch gate
+  addObstacle(9.8,0.2,1.4); // vending
+  // ZONE 1 — NW forest grove: 5 trees in a loose arc + grass rings at their feet (motive: grove floor)
+  [[-9.6,7.2,1.7],[-7.8,8.2,1.5],[-10.2,5.0,1.3],[-8.6,6.0,1.1],[-10.6,3.4,1.0]].forEach(([tx,tz,s])=>{
     vTree(tx,tz,s); addObstacle(tx,tz,1.3*s);
+    for(let i=0;i<5;i++){ const a=rnd(0,6.28), r=rnd(1.0,1.7)*s; grass.push({x:tx+Math.cos(a)*r, y:.75, z:tz+Math.sin(a)*r, s:rnd(.4,.6), c:pick(greens)}); }
   });
-  // ZONE 2 — NE meadow
-  const meadowCenters=[ [7.8,5.8], [8.8,3.8], [6.8,7.0] ];
+  // ZONE 2 — NE flower farm: 3 beds in neat rows (motive: planted rows, not scatter)
+  const meadowCenters=[ [9.0,6.8], [10.2,4.6], [8.0,8.2] ];
   meadowCenters.forEach(([mx,mz])=>{
-    addObstacle(mx,mz,1.2);
-    for(let i=0;i<4;i++) flowers.push({x:mx+rnd(-.9,.9), y:1.1, z:mz+rnd(-.9,.9), s:rnd(.42,.55), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
-    for(let i=0;i<3;i++) grass.push({x:mx+rnd(-1.2,1.2), y:.75, z:mz+rnd(-1.2,1.2), s:rnd(.5,.7), c:pick(greens)});
+    addObstacle(mx,mz,1.4);
+    for(let r=0;r<2;r++) for(let c=0;c<3;c++)
+      flowers.push({x:mx+(c-1)*0.75, y:1.1, z:mz+(r-0.5)*0.75, s:rnd(.42,.55), c:pick(['#FF6FA0','#FFFFFF','#FF9F1C'])});
+    for(let i=0;i<3;i++) grass.push({x:mx+rnd(-1.3,1.3), y:.75, z:mz+rnd(-1.3,1.3), s:rnd(.5,.7), c:pick(greens)});
   });
-  // ZONE 3 — SE rock garden, clear of B3 (6.5,-3.5)
-  const stones=[ {x:7.2,y:TOPY+.22,z:-6.4,s:.72,c:'#CFC8BA'}, {x:8.4,y:TOPY+.22,z:-5.2,s:.62,c:'#B8AD9A'}, {x:6.2,y:TOPY+.22,z:-7.4,s:.56,c:'#DDD5C2'} ];
-  const mush=[ {x:7.6,y:TOPY+.6,z:-5.8,s:.48,c:'#FF6FA0'}, {x:8.2,y:TOPY+.55,z:-6.4,s:.38,c:'#FFE066'} ];
-  stones.forEach(s=>{ if(clearOf(s.x,s.z,0.5)) addObstacle(s.x,s.z,0.7); });
-  // ZONE 4 — SW pond
-  const pondLeaves=[ {x:-5.0,y:TOPY+.12,z:-7.2,s:.95,c:'#3CB371'}, {x:-6.2,y:TOPY+.12,z:-6.4,s:.88,c:'#3CB371'}, {x:-4.0,y:TOPY+.12,z:-8.0,s:.82,c:'#2E8B57'} ];
-  pondLeaves.forEach(p=> leaf.push(p)); addObstacle(-5.0,-7.0,1.8);
-  vTree(-3.2,-8.2,1.15); addObstacle(-3.2,-8.2,1.4);
-  vTree(-6.8,-6.8,1.0);
-  [[-8.0,-4.5],[2.5,8.2],[-4.5,4.8],[7.0,1.5],[-7.5,-0.5]].forEach(([bx,bz])=>{
+  // ZONE 3 — SE rock garden: stone arc + 2 mush (motive: zen arc)
+  const stones=[ {x:8.4,y:TOPY+.22,z:-7.4,s:.72,c:'#CFC8BA'}, {x:9.8,y:TOPY+.22,z:-6.0,s:.62,c:'#B8AD9A'}, {x:7.2,y:TOPY+.22,z:-8.6,s:.56,c:'#DDD5C2'} ];
+  const mush=[ {x:8.8,y:TOPY+.6,z:-6.8,s:.48,c:'#FF6FA0'}, {x:9.4,y:TOPY+.55,z:-7.4,s:.38,c:'#FFE066'} ];
+  stones.forEach(s=> addObstacle(s.x,s.z,0.8));
+  // ZONE 4 — SW pond: 3 lily pads + 2 pond pines (motive: pond cluster)
+  const pondLeaves=[ {x:-5.8,y:TOPY+.12,z:-8.4,s:.95,c:'#3CB371'}, {x:-7.2,y:TOPY+.12,z:-7.4,s:.88,c:'#3CB371'}, {x:-4.6,y:TOPY+.12,z:-9.2,s:.82,c:'#2E8B57'} ];
+  pondLeaves.forEach(p=> leaf.push(p)); addObstacle(-5.8,-8.2,2.0);
+  vTree(-3.8,-9.6,1.15); addObstacle(-3.8,-9.6,1.5);
+  vTree(-7.8,-8.0,1.0); addObstacle(-7.8,-8.0,1.3);
+  // bush accents — one per gap between zones, each with a single bloom (motive: gap markers)
+  [[-9.2,-5.2],[3.0,9.4],[-5.2,5.6],[7.6,0.6],[-9.8,-0.6]].forEach(([bx,bz])=>{
     addObstacle(bx,bz,1.0);
     for(let i=0;i<6;i++) leaf.push({x:bx+rnd(-.7,.7), y:TOPY+.5+rnd(0,.45), z:bz+rnd(-.7,.7), s:rnd(.55,.75), c:pick(greens)});
-    flowers.push({x:bx+rnd(-.4,.4), y:TOPY+1.1, z:bz+rnd(-.4,.4), s:.36, c:pick(['#FF6FA0','#B678FF','#FF9F1C'])});
+    flowers.push({x:bx, y:TOPY+1.15, z:bz, s:.38, c:pick(['#FF6FA0','#B678FF','#FF9F1C'])});
   });
   buildVoxSet(top,'#FF9F9C',.012);
   buildVoxSet(under,'#C9B895',.01);
@@ -484,10 +488,10 @@ let city=null;
   }
   // intentional city layout — uses pre-reserved footprints, no overlaps
   buildingDefs.forEach(b=> shapedBuilding(b));
-  archBridge({x:0,z:7.5,w:3.4,h:2.1, col:'#EFE6D4'});
+  archBridge({x:0,z:8.6,w:3.4,h:2.1, col:'#EFE6D4'});
   // bridge bending over pond — placed at pond, clear of buildings
   {
-    const grp=new THREE.Group(); grp.position.set(-5.0,TOPY+0.4,-6.2);
+    const grp=new THREE.Group(); grp.position.set(-6.2,TOPY+0.4,-7.8);
     const curve=new THREE.CatmullRomCurve3([new THREE.Vector3(-2.2,0,0), new THREE.Vector3(0,0.42,0), new THREE.Vector3(2.2,0,0)]);
     const tube=new THREE.Mesh(new THREE.TubeGeometry(curve,20,0.14,8,false), solidMat('#E8DDC8')); grp.add(tube); register(tube,'#A8E934',0.016,false);
     [-1.5,0,1.5].forEach(px=>{
@@ -495,13 +499,13 @@ let city=null;
     });
     city.add(grp);
   }
-  // lamps on ring road, checked clear
-  [[-3.2,1.8],[3.4,1.2],[0.6,4.4],[-2.2,-3.2],[5.8,-1.2]].forEach(([lx,lz],i)=>{
+  // lamps lining the plaza ring road, each verified clear of buildings
+  [[-2.5,4.5],[3.0,5.0],[4.2,-1.5],[-4.5,-3.5],[1.5,-4.5]].forEach(([lx,lz],i)=>{
     if(clearOf(lx,lz,0.8)){ streetLamp(lx,lz,1.1+(i%2)*0.15); addObstacle(lx,lz,0.5); }
   });
-  // vending machine — east edge, clear of B2/B3
+  // vending machine — THE shop element, east edge plaza approach
   {
-    const vm=new THREE.Group(); vm.position.set(8.0,TOPY+0.85,0.6);
+    const vm=new THREE.Group(); vm.position.set(9.8,TOPY+0.85,0.2);
     const box=new THREE.Mesh(new RoundedBoxGeometry(1.1,1.7,0.8,3,0.12), solidMat('#2B2B32')); vm.add(box); register(box,'#FF477E',0.02,false);
     const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.1), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.3, roughness:.15})); glass.position.set(0,0.12,0.42); vm.add(glass);
     const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.18), new THREE.MeshBasicMaterial({color:0xFF477E})); strip.position.set(0,-0.6,0.42); vm.add(strip);
@@ -586,10 +590,10 @@ let rLegL, rLegR, rArmL, rArmR, rHead, rVisor;
   robot.position.set(2.1,TOPY,1.1); robot.rotation.y=-.5;
   scene.add(robot);
 }
-// robot ring road — radius 3.8 circle, inside all buildings (nearest B at ~5.5), never through walls
+// robot ring road — radius 4.2 circle on the widened plaza, inside all buildings, never through walls
 let robotT=0;
 const robotPath=[];
-for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; robotPath.push([Math.cos(a)*3.8, Math.sin(a)*3.8]); }
+for(let i=0;i<8;i++){ const a=(i/8)*Math.PI*2; robotPath.push([Math.cos(a)*4.2, Math.sin(a)*4.2]); }
 // runtime collision: push out of any obstacle (buildings/trees/hero)
 function avoidObstacles(px,pz){
   let nx=px, nz=pz;
@@ -599,7 +603,7 @@ function avoidObstacles(px,pz){
   }
   // hero hard keep-out
   const hd=Math.hypot(nx,nz);
-  if(hd<2.6){ nx=nx/hd*2.6; nz=nz/hd*2.6; }
+  if(hd<3.0){ nx=nx/hd*3.0; nz=nz/hd*3.0; }
   return [nx,nz];
 }
 
@@ -609,7 +613,7 @@ const drips=[];
   const dripMat=jellyMat('#EFE6D4',.03); dripMat.transmission=.7; alwaysJelly.push(dripMat);
   for(let i=0;i<10;i++){
     const m=new THREE.Mesh(new THREE.SphereGeometry(rnd(.09,.17),10,14), dripMat);
-    const a=rnd(0,6.28), r=rnd(0,3.6);
+    const a=rnd(0,6.28), r=rnd(0,6);
     m.position.set(Math.cos(a)*r, rnd(-9,-5), Math.sin(a)*r);
     m.scale.y=2.2; m.userData.sp=rnd(.5,1.1);
     scene.add(m); drips.push(m);
@@ -647,8 +651,8 @@ const floaters=[], gallery=[];
     const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
     m.userData.productId=d.p;
-    const a=(i/defs.length)*6.28, r=6.5+i*.7;
-    m.position.set(Math.cos(a)*r, 2+i*.8, Math.sin(a)*r);
+    const a=(i/defs.length)*6.28, r=14+i*.8;
+    m.position.set(Math.cos(a)*r, 5+i*.9, Math.sin(a)*r);
     m.rotation.set(rnd(0,1),rnd(0,3),0); scene.add(m);
     floaters.push({m,baseY:m.position.y,ph:rnd(0,6),sp:.5+rnd(0,.5),vel:new THREE.Vector3(),squish:0,orb:{a,r,sp:.08+rnd(0,.12)}});
   });
@@ -660,8 +664,8 @@ const floaters=[], gallery=[];
     const m=new THREE.Mesh(new RoundedBoxGeometry(d.s,d.s,d.s,3, d.s*0.18), jellyMat(d.c,.09));
     m.material.transmission=.95; alwaysJelly.push(m.material);
     m.userData.productId=d.p;
-    const a=(i/gdefs.length)*6.28+.5, r=8+i*.5;
-    m.position.set(Math.cos(a)*r, 4.5+(i%3), Math.sin(a)*r);
+    const a=(i/gdefs.length)*6.28+.5, r=15.5+i*.6;
+    m.position.set(Math.cos(a)*r, 8.5+(i%3)*1.1, Math.sin(a)*r);
     m.rotation.set(rnd(0,1),rnd(0,3),0); scene.add(m);
     gallery.push({m,baseY:m.position.y,ph:rnd(0,6),sp:.5+rnd(0,.5),vel:new THREE.Vector3(),squish:0,orb:{a,r,sp:.06+rnd(0,.1)}});
   });
@@ -679,7 +683,7 @@ const portals=[];
 FLAVOURS.forEach((f,i)=>{
   const a=(i/FLAVOURS.length)*Math.PI*2+.3;
   const t=new THREE.Mesh(new THREE.TorusGeometry(.7,.1,14,36), new THREE.MeshStandardMaterial({color:new THREE.Color(f.color),emissive:new THREE.Color(f.color),emissiveIntensity:.9,roughness:.2}));
-  t.position.set(Math.cos(a)*11.5,2.6+i*.35,Math.sin(a)*11.5);
+  t.position.set(Math.cos(a)*15.5,3.2+i*.4,Math.sin(a)*15.5);
   t.userData.flav=f; t.userData.productId=(f.id==='coffee'?'espresso':f.id); scene.add(t); portals.push(t);
 });
 
@@ -801,9 +805,9 @@ function endDrag(e){
     const targets=[city,hero,...crownMeshes,...floaters.map(f=>f.m),...gallery.map(g=>g.m),...portals];
     const hits=ray.intersectObjects(targets,true);
     for(const h of hits){
-      let o=h.object, pid=null, all=false;
-      while(o){ if(o.userData && o.userData.productId){ pid=o.userData.productId; all=!!o.userData.shopAll; break; } o=o.parent; }
-      if(pid){ openShop(all?null:pid); blip(.9); break; }
+      let o=h.object, shop=false;
+      while(o){ if(o.userData && o.userData.shopAll){ shop=true; break; } o=o.parent; }
+      if(shop){ openShop(null); blip(.9); break; }
     }
   }
 }
@@ -862,6 +866,38 @@ document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toa
 let toastT=null;
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 renderBag();
+
+// ---- techno-house loop: procedural WebAudio, autoplays (first gesture unlocks), toggle to pause ----
+let musicOn=true, AC2=null, mGain=null, mStep=0, mTimer=null;
+const BPM=122, SPB=60/BPM/4;
+const BASS=[55,0,55,0,65.4,0,55,0,49,0,49,0,58.3,0,73.4,0]; // A1 groove
+function mNoise(){ const b=AC2.createBuffer(1,AC2.sampleRate*0.1,AC2.sampleRate), d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1; const s=AC2.createBufferSource(); s.buffer=b; return s; }
+function mKick(t){ const o=AC2.createOscillator(), g=AC2.createGain(); o.type='sine'; o.frequency.setValueAtTime(160,t); o.frequency.exponentialRampToValueAtTime(45,t+0.11); g.gain.setValueAtTime(0.9,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.24); o.connect(g).connect(mGain); o.start(t); o.stop(t+0.26); }
+function mHat(t,open){ const s=mNoise(), f=AC2.createBiquadFilter(), g=AC2.createGain(); f.type='highpass'; f.frequency.value=7500; const d=open?0.18:0.05; g.gain.setValueAtTime(open?0.22:0.16,t); g.gain.exponentialRampToValueAtTime(0.001,t+d); s.connect(f).connect(g).connect(mGain); s.start(t); s.stop(t+d+0.02); }
+function mBass(t,fr){ if(!fr) return; const o=AC2.createOscillator(), f=AC2.createBiquadFilter(), g=AC2.createGain(); o.type='sawtooth'; o.frequency.value=fr; f.type='lowpass'; f.frequency.setValueAtTime(600,t); f.frequency.exponentialRampToValueAtTime(220,t+SPB); g.gain.setValueAtTime(0.24,t); g.gain.exponentialRampToValueAtTime(0.001,t+SPB*0.95); o.connect(f).connect(g).connect(mGain); o.start(t); o.stop(t+SPB); }
+function mStab(t){ [220,261.6,329.6].forEach(fr=>{ const o=AC2.createOscillator(), f=AC2.createBiquadFilter(), g=AC2.createGain(); o.type='sawtooth'; o.frequency.value=fr*2; f.type='bandpass'; f.frequency.value=1800; f.Q.value=1.2; g.gain.setValueAtTime(0.07,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.3); o.connect(f).connect(g).connect(mGain); o.start(t); o.stop(t+0.32); }); }
+function mSchedule(){
+  if(!musicOn) return;
+  const t=AC2.currentTime+0.06, s=mStep%32;
+  if(s%4===0) mKick(t);
+  if(s%4===2) mHat(t,false);
+  if(s===30) mHat(t,true);
+  mBass(t,BASS[s%16]);
+  if(s===0||s===16) mStab(t);
+  mStep++;
+}
+function mStart(){ if(mTimer||!AC2) return; mStep=0; mTimer=setInterval(mSchedule,SPB*1000); }
+function mUnlock(){
+  if(!AC2){ try{ AC2=new (window.AudioContext||window.webkitAudioContext)(); mGain=AC2.createGain(); mGain.gain.value=0.5; mGain.connect(AC2.destination); }catch{ return; } }
+  if(AC2.state==='suspended'){ AC2.resume().then(()=>{ if(musicOn) mStart(); }).catch(()=>{}); }
+  else if(musicOn) mStart();
+}
+const musicBtn=document.getElementById('musicBtn');
+function mPaint(){ musicBtn.textContent=musicOn?'🔊':'🔇'; musicBtn.title=musicOn?'Pause music':'Play music'; }
+musicBtn.onclick=(e)=>{ e.stopPropagation(); musicOn=!musicOn; mPaint(); if(musicOn){ mUnlock(); } else if(mTimer){ clearInterval(mTimer); mTimer=null; } };
+mPaint(); mUnlock();
+addEventListener('pointerdown',function once(){ mUnlock(); },{once:false});
+addEventListener('keydown',function once(){ mUnlock(); },{once:false});
 
 let heroSquish=0;
 function doDrop(){
@@ -992,12 +1028,12 @@ function animate(now){
   for(let i=pops.children.length-1;i>=0;i--){ const p=pops.children[i]; p.position.addScaledVector(p.userData.v,dt*8); p.userData.v.y-=dt*1.2; p.userData.life-=dt*1.5; p.material.opacity=p.userData.life; if(p.userData.life<=0)pops.remove(p); }
   // camera — single screen, no scroll
   const sp=0;
-  const baseDist=(22-sp*8)+userZoom;
+  const baseDist=(30-sp*8)+userZoom;
   if(autoOrbit) orbitA+=dt*.28;
   const yaw=orbitA+camYaw;
   const tx=Math.sin(yaw)*baseDist*.62+mx*1.1;
   const tz=Math.cos(yaw)*baseDist*.62+baseDist*.38;
-  const ty=7.5+Math.sin(t*.35)*.3-camPitch*10+sp*1.4;
+  const ty=10+Math.sin(t*.35)*.3-camPitch*10+sp*1.4;
   camera.position.x+=(tx-camera.position.x)*Math.min(1,dt*3);
   camera.position.y+=(ty-camera.position.y)*Math.min(1,dt*3);
   camera.position.z+=(tz-camera.position.z)*Math.min(1,dt*3);
