@@ -14,7 +14,9 @@
 --pink:#FF477E; --mango:#FF9F1C; --lime:#A8E934; --grape:#865DFF; --blue:#35A7FF; --cherry:#FF304F;
 }
 html{scrollbar-width:none} html::-webkit-scrollbar{display:none}
-body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink);overflow-x:hidden;-webkit-font-smoothing:antialiased}
+body{font-family:'Plus Jakarta Sans',system-ui,sans-serif;background:var(--cream);color:var(--ink);overflow:hidden;height:100vh;height:100dvh;-webkit-font-smoothing:antialiased;overscroll-behavior:none}
+.sections,.footer{display:none!important}
+.hero{min-height:100vh;min-height:100dvh}
 canvas#bg{position:fixed;inset:0;width:100%;height:100vh;display:block;z-index:0}
 .loader{position:fixed;inset:0;z-index:200;background:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;transition:opacity .8s ease,visibility .8s}
 .loader.hidden{opacity:0;visibility:hidden;pointer-events:none}
@@ -629,8 +631,8 @@ const drop=new THREE.Mesh(new THREE.SphereGeometry(.5,26,26), dropMat);
 drop.scale.y=1.35; drop.position.set(0,10.5,0); scene.add(drop);
 let dropped=false, jellied=false;
 const wave={r:0,active:false,speed:10};
-const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.1,64), new THREE.MeshBasicMaterial({color:0xFF477E,transparent:true,opacity:0,side:THREE.DoubleSide}));
-ring.rotation.x=-Math.PI/2; ring.position.y=TOPY+.15; scene.add(ring);
+const ring=new THREE.Mesh(new THREE.RingGeometry(.9,1.1,64), new THREE.MeshBasicMaterial({color:0xFF477E,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
+ring.rotation.x=-Math.PI/2; ring.position.y=TOPY+.15; ring.visible=false; ring.renderOrder=5; scene.add(ring);
 
 // flavour cards UI
 const fg=document.getElementById('flavGrid');
@@ -754,7 +756,8 @@ function doDrop(){
 function impact(){
   jellied=true; wave.active=true; wave.r=.5; heroSquish=1;
   document.getElementById('state').textContent=currentFlav.name.toUpperCase()+' · JELLIED';
-  gsap.fromTo(ring.material,{opacity:.95},{opacity:0,duration:1.6});
+  ring.visible=true;
+  gsap.fromTo(ring.material,{opacity:.95},{opacity:0,duration:1.6,onComplete:()=>{ring.visible=false;}});
   gsap.fromTo(ring.scale,{x:1,y:1,z:1},{x:14,y:14,z:14,duration:1.8,ease:'power2.out'});
   gsap.fromTo('#shock',{opacity:1,scale:.8},{opacity:0,scale:1.15,duration:1.6,ease:'power2.out'});
   gsap.fromTo(camera.position,{z:camera.position.z},{z:camera.position.z-1.6,duration:.14,yoyo:true,repeat:1});
@@ -871,9 +874,8 @@ function animate(now){
   island.rotation.y=Math.sin(t*.12)*.03;
   // pops
   for(let i=pops.children.length-1;i>=0;i--){ const p=pops.children[i]; p.position.addScaledVector(p.userData.v,dt*8); p.userData.v.y-=dt*1.2; p.userData.life-=dt*1.5; p.material.opacity=p.userData.life; if(p.userData.life<=0)pops.remove(p); }
-  // camera
-  const sy=scrollY, maxS=Math.max(1,document.body.scrollHeight-innerHeight);
-  const sp=Math.min(1,sy/maxS);
+  // camera — single screen, no scroll
+  const sp=0;
   const baseDist=(22-sp*8)+userZoom;
   if(autoOrbit) orbitA+=dt*.28;
   const yaw=orbitA+camYaw;
