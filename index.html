@@ -120,6 +120,10 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 #checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#shopMarker{position:fixed;z-index:40;transform:translate(-50%,-100%);background:#FF477E;color:#fff;font:800 11px 'Plus Jakarta Sans';letter-spacing:.1em;padding:10px 16px;border-radius:99px;white-space:nowrap;cursor:pointer;box-shadow:0 10px 30px rgba(255,71,126,.5);animation:bob 1.6s ease-in-out infinite;transition:opacity .3s}
+#shopMarker::after{content:'';position:absolute;left:50%;bottom:-7px;transform:translateX(-50%);border:8px solid transparent;border-top-color:#FF477E;border-bottom:none}
+#shopMarker.hide{opacity:0;pointer-events:none}
+@keyframes bob{0%,100%{margin-top:0}50%{margin-top:-9px}}
 </style>
 </head>
 <body class="dark">
@@ -162,6 +166,7 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 </div>
 </div>
 <div id="toast"></div>
+<div id="shopMarker" title="Open shop">🛒 TAP VENDING MACHINE TO SHOP</div>
 
 <section class="hero">
 <div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop · tap the vending machine to shop</div>
@@ -342,6 +347,8 @@ function clearOf(x,z,pad=1.2){
 }
 function addObstacle(x,z,r){ obstacles.push({x,z,r}); }
 let city=null;
+let vmRef=null;
+const _v3=new THREE.Vector3();
 {
   // ---- clear segmentation: wider base + non-overlapping zones with exclusion ----
   const top=[], under=[], grass=[], flowers=[], wood=[], leaf=[];
@@ -510,7 +517,11 @@ let city=null;
     const glass=new THREE.Mesh(new THREE.PlaneGeometry(0.8,1.1), new THREE.MeshStandardMaterial({color:0x35A7FF, emissive:0x35A7FF, emissiveIntensity:.3, roughness:.15})); glass.position.set(0,0.12,0.42); vm.add(glass);
     const strip=new THREE.Mesh(new THREE.PlaneGeometry(0.8,0.18), new THREE.MeshBasicMaterial({color:0xFF477E})); strip.position.set(0,-0.6,0.42); vm.add(strip);
     vm.traverse(o=>{ o.userData.productId='berry'; o.userData.shopAll=true; });
-    city.add(vm);
+    // beacon pillar — visible landmark so users can find the shop element
+    const beacon=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.5,7,12,1,true),
+      new THREE.MeshBasicMaterial({color:0xFF477E,transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
+    beacon.position.y=4.2; beacon.renderOrder=4; vm.add(beacon); vm.userData.beacon=beacon;
+    city.add(vm); vmRef=vm;
   }
 }
 
@@ -862,6 +873,7 @@ document.getElementById('shopBg').onclick=closeShop;
 document.getElementById('shopClose').onclick=closeShop;
 addEventListener('keydown',e=>{ if(e.key==='Escape') closeShop(); });
 document.getElementById('bagBtn').onclick=()=>openShop(null);
+document.getElementById('shopMarker').onclick=()=>openShop(null);
 document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toast(n?`Checkout — ${n} items · $${sum} (demo)`:'Your bag is empty — tap a jelly first'); };
 let toastT=null;
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
@@ -1041,6 +1053,16 @@ function animate(now){
   lookT.y+=((1.6+sp*1.6+my*.5)-lookT.y)*Math.min(1,dt*2);
   camera.lookAt(lookT);
   if(jellied){ project(document.getElementById('fl1'),flAnchors[0]()); project(document.getElementById('fl2'),flAnchors[1]()); project(document.getElementById('fl3'),flAnchors[2]()); project(document.getElementById('fl4'),flAnchors[3]()); }
+  // shop marker — pinned above the vending machine, always visible until shop opens
+  {
+    const mk=document.getElementById('shopMarker');
+    if(vmRef && !shopEl.classList.contains('open')){
+      _v3.setFromMatrixPosition(vmRef.matrixWorld); _v3.y+=3.4; _v3.project(camera);
+      if(_v3.z<1){ mk.classList.remove('hide'); mk.style.left=((_v3.x*.5+.5)*innerWidth)+'px'; mk.style.top=((-_v3.y*.5+.5)*innerHeight)+'px'; }
+      else mk.classList.add('hide');
+      if(vmRef.userData.beacon) vmRef.userData.beacon.material.opacity=0.12+Math.sin(t*2.4)*0.06;
+    } else mk.classList.add('hide');
+  }
   renderer.render(scene,camera);
   frames++; if(now-lastFps>600){ document.getElementById('fps').textContent=Math.round(frames*1000/(now-lastFps))+' FPS'; frames=0; lastFps=now; }
   if(now>1500){ document.getElementById('loader').classList.add('hidden'); lfill.style.width='100%'; clearInterval(li); }
