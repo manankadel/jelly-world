@@ -121,6 +121,44 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 #checkout{background:#FF477E;color:#fff;border:none;border-radius:99px;padding:12px 26px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer}
 #toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);z-index:130;background:#111;color:#F4F0E8;font:700 12px 'Plus Jakarta Sans';letter-spacing:.06em;padding:11px 20px;border-radius:99px;opacity:0;pointer-events:none;transition:.3s}
 #toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#drawer{position:fixed;top:0;right:0;bottom:0;width:min(390px,94vw);z-index:110;background:#F4F0E8;color:#111;transform:translateX(105%);transition:transform .38s cubic-bezier(.32,.72,.28,1);box-shadow:-24px 0 60px rgba(0,0,0,.4);display:flex;flex-direction:column;overflow:hidden;border-radius:26px 0 0 26px}
+#drawer.open{transform:translateX(0)}
+#drawerHead{display:flex;align-items:flex-start;justify-content:space-between;padding:22px 22px 0}
+#drawerKicker{font-size:10px;font-weight:800;letter-spacing:.26em;opacity:.5}
+#drawerClose{width:36px;height:36px;flex:none;border-radius:50%;border:1px solid rgba(17,17,17,.2);background:none;font-size:15px;cursor:pointer;color:#111}
+#drawerBody{padding:16px 22px 26px;overflow-y:auto;flex:1}
+#drawerBody h2{font-family:'Inter Tight';font-weight:900;font-size:clamp(30px,4vw,42px);letter-spacing:-.04em;line-height:.95;margin-top:6px}
+.d-visual{height:190px;border-radius:20px;margin:14px 0;position:relative;overflow:hidden;box-shadow:inset 0 4px 14px rgba(255,255,255,.6),inset 0 -14px 30px rgba(0,0,0,.15)}
+.d-visual::after{content:'';position:absolute;inset:0;background:radial-gradient(circle at 30% 25%,rgba(255,255,255,.75),transparent 45%),radial-gradient(circle at 72% 68%,rgba(255,255,255,.35),transparent 40%)}
+.d-pack{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.14em;background:#111;color:#F4F0E8;padding:7px 12px;border-radius:99px;margin-top:10px}
+.d-desc{font-size:14px;line-height:1.65;opacity:.75;margin-top:12px}
+.d-facts{margin-top:14px;border-top:1px solid rgba(17,17,17,.12);padding-top:12px;font-size:12px;line-height:2;opacity:.8}
+.d-facts b{font-weight:800}
+.d-buy{display:flex;align-items:center;gap:12px;margin-top:18px}
+.d-price{font-family:'Inter Tight';font-weight:900;font-size:26px}
+.d-add{flex:1;background:#111;color:#F4F0E8;border:none;border-radius:99px;padding:15px;font:800 12px 'Plus Jakarta Sans';letter-spacing:.1em;cursor:pointer;transition:.2s}
+.d-add:hover{background:#FF477E}
+.d-row{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid rgba(17,17,17,.1);border-radius:18px;padding:14px;margin-top:10px;cursor:pointer;transition:.2s;text-align:left;width:100%;font-family:inherit;color:#111}
+.d-row:hover{transform:translateX(-4px)}
+.d-row .p-dot{width:52px;height:52px;flex:none;border-radius:16px}
+.d-row h4{font-family:'Inter Tight';font-weight:800;font-size:16px}
+.d-row p{font-size:12px;opacity:.6}
+.d-hand{font-family:'Caveat',cursive;font-size:19px;opacity:.7;margin-top:14px}
+@media(max-width:700px){
+  #fps{display:none}
+  .bottom .stat{font-size:9px}
+  .nav{width:calc(100% - 16px);top:8px;padding:8px 8px 8px 16px}
+  .logo{font-size:22px}
+  .nav-cta{padding:9px 14px;font-size:10px}
+  .bag-btn{padding:9px 12px;font-size:10px}
+  .bottom{bottom:10px;padding:7px 10px 7px 12px;gap:7px}
+  .hero-hint{bottom:88px;font-size:9px;max-width:88vw;white-space:normal;text-align:center;line-height:1.8}
+  #drawer{width:100vw;border-radius:0}
+  #shopCard{padding:20px}
+  #shopGrid{grid-template-columns:1fr 1fr}
+  .zoom-pill{bottom:64px}
+}
+canvas#bg{touch-action:none}
 </style>
 </head>
 <body class="dark">
@@ -159,10 +197,14 @@ body.dark .mbtn{background:rgba(17,17,17,.7);color:#fff;border-color:rgba(255,25
 <h2 id="shopTitle">GOOD PICKS.</h2>
 <p class="sub">Tap the <b>vending machine</b> on the island's east edge — the camera flies in and you pick minis straight off its shelf.</p>
 <div id="shopGrid"></div>
-<div id="shopFoot"><span id="bagLine">Bag: 0 items · $0</span><button id="checkout">CHECKOUT →</button></div>
+<div id="shopFoot"><span id="bagLine">Bag: 0 items · ₹0</span><button id="checkout">CHECKOUT →</button></div>
 </div>
 </div>
 <div id="toast"></div>
+<aside id="drawer" aria-hidden="true">
+<div id="drawerHead"><div id="drawerKicker">JELL IT</div><button id="drawerClose" title="Close">✕</button></div>
+<div id="drawerBody"></div>
+</aside>
 
 <section class="hero">
 <div class="hero-hint" id="heroHint">drag to look · + / − to zoom · click the drop · tap the vending machine to shop</div>
@@ -511,18 +553,18 @@ const _v3=new THREE.Vector3();
     const beacon=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.5,7,12,1,true),
       new THREE.MeshBasicMaterial({color:0xFF477E,transparent:true,opacity:0.16,side:THREE.DoubleSide,depthWrite:false,blending:THREE.AdditiveBlending}));
     beacon.position.y=4.2; beacon.renderOrder=4; vm.add(beacon); vm.userData.beacon=beacon;
-    // product shelf — the catalog lives IN the machine: 6 mini jellies, tap one to bag it
-    const shelfCols=['#8a4a1a','#FF9F1C','#A8E934','#FF477E','#F4F0E8','#865DFF'];
-    const shelfIds=['espresso','mango','lime','berry','milk','cocktail'];
-    [0.28,-0.24].forEach((sy,row)=>{
-      const board=new THREE.Mesh(new RoundedBoxGeometry(1.6,0.07,0.5,2,0.02), solidMat('#E9DEC9'));
+    // product shelf — the real catalog lives IN the machine: 4 minis, tap one for its card
+    const shelfCols=['#8a4a1a','#A8E934','#FF6FA0','#FFC93B'];
+    const shelfIds=['espresso','lime','peach','pina'];
+    [0.28,-0.24].forEach((sy)=>{
+      const board=new THREE.Mesh(new RoundedBoxGeometry(1.5,0.07,0.5,2,0.02), solidMat('#E9DEC9'));
       board.position.set(0,sy,0.62); vm.add(board);
     });
     shelfCols.forEach((c,i)=>{
-      const col=i%3, row=Math.floor(i/3);
-      const mini=new THREE.Mesh(new RoundedBoxGeometry(0.3,0.3,0.3,2,0.06), jellyMat(c,.1));
+      const col=i%2, row=Math.floor(i/2);
+      const mini=new THREE.Mesh(new RoundedBoxGeometry(0.34,0.34,0.34,2,0.07), jellyMat(c,.1));
       mini.material.transmission=.9;
-      mini.position.set((col-1)*0.5, (row===0?0.28:-0.24)+0.19, 0.62);
+      mini.position.set((col-0.5)*0.62, (row===0?0.28:-0.24)+0.21, 0.62);
       mini.userData.productId=shelfIds[i]; mini.userData.shelf=true;
       vm.add(mini); alwaysJelly.push(mini.material);
     });
@@ -844,7 +886,7 @@ function endDrag(e){
       while(o){ if(o.userData){ if(o.userData.shelf){ shelf=o.userData.productId; break; } if(o.userData.shopAll){ vend=true; break; } } o=o.parent; }
       if(shelf){
         const p=PRODUCTS.find(q=>q.id===shelf);
-        if(p){ bag[p.id]=(bag[p.id]||0)+1; renderBag(); toast(`${p.name} added to bag`); blip(.9); pop(h.point.x,h.point.y+.3,h.point.z,p.color); }
+        if(p){ openDrawer('product',p.id); blip(.9); pop(h.point.x,h.point.y+.3,h.point.z,p.color); }
         break;
       }
       if(vend){ focusVending(); break; }
@@ -866,18 +908,16 @@ canvas.addEventListener('pointerdown',()=>blip(Math.random()));
 
 // ---- shop: click any building / vending / jelly / portal → layover with product cards + bag ----
 const PRODUCTS=[
-  {id:'espresso', name:'Espresso Jelly', desc:'Dark amber volume. Caramel caustics. The after-hours one.', price:12, color:'#8a4a1a'},
-  {id:'mango', name:'Mango Sculpture', desc:'Golden-orange. Tropical noon in a cube.', price:14, color:'#FF9F1C'},
-  {id:'lime', name:'Lime Glass', desc:'Acid green. Sharp glass-like transmission.', price:14, color:'#A8E934'},
-  {id:'berry', name:'Berry Alien', desc:'Hot pink hero jelly. Dreamy dusk. The icon.', price:16, color:'#FF477E', feat:true},
-  {id:'milk', name:'Milk Cloud', desc:'Soft white panna-cotta jelly. Minimal.', price:12, color:'#F4F0E8'},
-  {id:'cocktail', name:'Cocktail Chrome', desc:'Electric purple / cyan. Nightclub energy.', price:18, color:'#865DFF'},
+  {id:'espresso', name:'Espresso Martini', desc:'After-hours jelly shots. Dark, glossy, zero-sugar drama for house parties and game nights.', price:149, color:'#8a4a1a', pack:'90g · 5×18g pieces'},
+  {id:'lime', name:'Lemon & Lime', desc:'Sharp citrus spark. The palate-cleanser that turns any drink into a moment.', price:149, color:'#A8E934', pack:'90g · 5×18g pieces'},
+  {id:'peach', name:'Passionfruit & Peach', desc:'Pink, juicy, made to be shared. The creator favourite — beautiful on camera.', price:149, color:'#FF6FA0', pack:'90g · 5×18g pieces'},
+  {id:'pina', name:'Pina Colada', desc:'Golden tropical noon. Coconut-pineapple nostalgia, jellified.', price:149, color:'#FFC93B', pack:'90g · 5×18g pieces'},
 ];
 let bag={}; try{ bag=JSON.parse(localStorage.getItem('jellit-bag')||'{}'); }catch{ bag={}; }
 const shopEl=document.getElementById('shop'), shopGrid=document.getElementById('shopGrid');
 const bagCountEl=document.getElementById('bagCount'), bagLine=document.getElementById('bagLine');
 function bagTotals(){ let n=0,sum=0; for(const p of PRODUCTS){ const q=bag[p.id]||0; n+=q; sum+=q*p.price; } return {n,sum}; }
-function renderBag(){ const {n,sum}=bagTotals(); bagCountEl.textContent=n; bagLine.textContent=`Bag: ${n} item${n===1?'':'s'} · $${sum}`; try{ localStorage.setItem('jellit-bag',JSON.stringify(bag)); }catch{} }
+function renderBag(){ const {n,sum}=bagTotals(); bagCountEl.textContent=n; bagLine.textContent=`Bag: ${n} item${n===1?'':'s'} · ₹${sum}`; try{ localStorage.setItem('jellit-bag',JSON.stringify(bag)); }catch{} }
 function renderBagPanel(){
   shopGrid.innerHTML='';
   const ids=PRODUCTS.filter(p=>bag[p.id]);
@@ -885,7 +925,7 @@ function renderBagPanel(){
   for(const p of ids){
     const q=bag[p.id];
     const card=document.createElement('div'); card.className='p-card'; card.style.gridColumn='1/-1'; card.style.flexDirection='row'; card.style.alignItems='center';
-    card.innerHTML=`<div class="p-dot" style="background:linear-gradient(135deg,${p.color},#ffffff55);width:56px;height:56px;flex:none"></div><div style="flex:1"><h4>${p.name}</h4><p>$${p.price} each</p></div><div class="p-row" style="gap:8px"><button class="p-add" data-a="-">−</button><span class="p-price">×${q}</span><button class="p-add" data-a="+">+</button></div>`;
+    card.innerHTML=`<div class="p-dot" style="background:linear-gradient(135deg,${p.color},#ffffff55);width:56px;height:56px;flex:none"></div><div style="flex:1"><h4>${p.name}</h4><p>₹${p.price} · ${p.pack}</p></div><div class="p-row" style="gap:8px"><button class="p-add" data-a="-">−</button><span class="p-price">×${q}</span><button class="p-add" data-a="+">+</button></div>`;
     const [minus,plus]=card.querySelectorAll('.p-add');
     minus.onclick=()=>{ bag[p.id]--; if(bag[p.id]<=0) delete bag[p.id]; renderBag(); renderBagPanel(); };
     plus.onclick=()=>{ bag[p.id]++; renderBag(); renderBagPanel(); };
@@ -899,12 +939,50 @@ function openBag(){
 function closeBag(){ shopEl.classList.remove('open'); shopEl.setAttribute('aria-hidden','true'); }
 document.getElementById('shopBg').onclick=closeBag;
 document.getElementById('shopClose').onclick=closeBag;
-addEventListener('keydown',e=>{ if(e.key==='Escape') closeBag(); });
+addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeBag(); closeDrawer(); } });
 document.getElementById('bagBtn').onclick=()=>openBag();
-document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toast(n?`Checkout — ${n} items · $${sum} (demo)`:'Your bag is empty — tap a jelly first'); };
+document.getElementById('checkout').onclick=()=>{ const {n,sum}=bagTotals(); toast(n?`Checkout — ${n} items · ₹${sum} (demo)`:'Your bag is empty — tap a mini on the machine'); };
 let toastT=null;
 function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2200); }
 renderBag();
+
+// ---- drawer: product cards, flavour worlds, material — slides from the right ----
+const drawerEl=document.getElementById('drawer'), drawerBody=document.getElementById('drawerBody'), drawerKicker=document.getElementById('drawerKicker');
+function openDrawer(mode,id){
+  closeBag();
+  if(mode==='product'){
+    const p=PRODUCTS.find(q=>q.id===id)||PRODUCTS[0];
+    drawerKicker.textContent='JELL IT · '+p.name.toUpperCase();
+    drawerBody.innerHTML=`<h2>${p.name}.</h2>
+      <div class="d-visual" style="background:linear-gradient(140deg,${p.color},#ffffff66)"></div>
+      <span class="d-pack">${p.pack} · ZERO ADDED SUGAR</span>
+      <p class="d-desc">${p.desc}</p>
+      <div class="d-facts"><b>37 kcal</b> per 18g serve · <b>0g</b> added sugar · with <b>collagen</b><br>Drop it in a drink, jell it, eat it. 5 pieces per pack.</div>
+      <div class="d-buy"><span class="d-price">₹${p.price}</span><button class="d-add" id="dAdd">ADD TO BAG</button></div>
+      <p class="d-hand">Good things come in weirder forms.</p>`;
+    document.getElementById('dAdd').onclick=()=>{ bag[p.id]=(bag[p.id]||0)+1; renderBag(); toast(`${p.name} added to bag`); blip(.9); };
+  } else if(mode==='flavours'){
+    drawerKicker.textContent='JELL IT · FLAVOUR WORLDS';
+    drawerBody.innerHTML=`<h2>Pick a liquid.</h2><p class="d-desc">Each world re-lights the whole island. Tap one to jell everything in it.</p><div id="dFlavs"></div>`;
+    const wrap=document.getElementById('dFlavs');
+    FLAVOURS.forEach(f=>{
+      const b=document.createElement('button'); b.className='d-row';
+      b.innerHTML=`<div class="p-dot" style="background:${f.color}"></div><div><h4>${f.name}</h4><p>${f.desc}</p></div>`;
+      b.onclick=()=>{ setFlavour(f,true); toast(`${f.name} — world jellied`); };
+      wrap.appendChild(b);
+    });
+  } else if(mode==='material'){
+    drawerKicker.textContent='JELL IT · MATERIAL';
+    drawerBody.innerHTML=`<h2>Glass + jelly had a child.</h2>
+      <div class="d-visual" style="background:linear-gradient(140deg,#FF477E,#865DFF)"></div>
+      <p class="d-desc">Every surface runs physical jelly shading — transmission, thickness, clearcoat and a layered-noise wobble solver. Poke anything. It jiggles back.</p>
+      <div class="d-facts"><b>transmission</b> 1.0 · <b>roughness</b> 0.08–0.18<br><b>thickness</b> 1–4 · <b>ior</b> 1.38–1.46 · <b>clearcoat</b> 1<br>cursor proximity → bend → ripple → return</div>
+      <p class="d-hand">If it's liquid, it can probably be jelly.</p>`;
+  }
+  drawerEl.classList.add('open'); drawerEl.setAttribute('aria-hidden','false');
+}
+function closeDrawer(){ drawerEl.classList.remove('open'); drawerEl.setAttribute('aria-hidden','true'); }
+document.getElementById('drawerClose').onclick=closeDrawer;
 
 // ---- techno-house loop: procedural WebAudio, autoplays (first gesture unlocks), toggle to pause ----
 let musicOn=true, AC2=null, mGain=null, mStep=0, mTimer=null;
@@ -961,9 +1039,18 @@ function impact(){
   ['fl1','fl2','fl3','fl4'].forEach(id=>document.getElementById(id).style.opacity='1');
   setTimeout(()=>['fl1','fl2','fl3','fl4'].forEach(id=>document.getElementById(id).style.opacity='0'),5000);
 }
-document.getElementById('navDrop').onclick=()=>{doDrop(); window.scrollTo({top:0,behavior:'smooth'});};
-document.getElementById('logo').onclick=()=>window.scrollTo({top:0,behavior:'smooth'});
-document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>document.getElementById(b.dataset.goto).scrollIntoView({behavior:'smooth'}));
+document.getElementById('navDrop').onclick=()=>{ if(!dropped) doDrop(); };
+document.getElementById('logo').onclick=()=>{ camYaw=0; camPitch=0; userZoom=0; orbitA=.5; focusUntil=0; closeDrawer(); closeBag(); toast('Back home'); };
+document.querySelectorAll('[data-goto]').forEach(b=>b.onclick=()=>{
+  const k=b.dataset.goto;
+  if(k==='flavours') openDrawer('flavours');
+  else if(k==='material') openDrawer('material');
+  else if(k==='gallery'){
+    autoOrbit=!autoOrbit;
+    document.getElementById('zOrbit').classList.toggle('on',autoOrbit);
+    toast(autoOrbit?'Gallery tour — orbiting':'Tour paused');
+  }
+});
 document.getElementById('zIn').onclick=()=>{ userZoom=THREE.MathUtils.clamp(userZoom-1.5,-7,9); };
 document.getElementById('zOut').onclick=()=>{ userZoom=THREE.MathUtils.clamp(userZoom+1.5,-7,9); };
 document.getElementById('zOrbit').onclick=(e)=>{ autoOrbit=!autoOrbit; e.target.classList.toggle('on',autoOrbit); };
